@@ -9,13 +9,13 @@ typedef struct
     Vec3 p1, p2, p3;
     Vec3 offset;
     Vec3 normal;
+    Mat mat;
 } Tri3;
 
 typedef struct
 {
     Tri3 *tris;
     Vec3 position;
-    Mat mat;
 
     unsigned int max_tris;
     unsigned int tri_index;

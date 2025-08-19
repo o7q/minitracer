@@ -24,3 +24,8 @@ Vec3 vec_unit(Vec3 a)
     float m = sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
     return (Vec3){a.x / m, a.y / m, a.z / m};
 }
+
+float vec_length(Vec3 a)
+{
+    return sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
+}

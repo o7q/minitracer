@@ -28,9 +28,18 @@ int main()
     tri.p1 = (Vec3){0, 0, 0};
     tri.p2 = (Vec3){3, 0, 0};
     tri.p3 = (Vec3){1.5, 3, 0};
-    tri.offset = (Vec3){0, 0, 2};
+    tri.offset = (Vec3){0, 0, -2};
+    tri.mat = (Mat){(Vec3){1, 0, 0}, 1.0f};
+
+    Tri3 tri2;
+    tri2.p1 = (Vec3){0, 0, 0};
+    tri2.p2 = (Vec3){5, 0, 0};
+    tri2.p3 = (Vec3){4, 6, 0};
+    tri2.offset = (Vec3){0, 0, -5};
+    tri2.mat = (Mat){(Vec3){0, 0, 1}, 1.0f};
 
     mesh_add_tri(mesh, tri);
+    mesh_add_tri(mesh, tri2);
 
     world_add_mesh(world, mesh);
 

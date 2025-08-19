@@ -31,19 +31,26 @@ void render(const Cam3 *camera, const World *world)
             ray.origin = camera->pos;
             ray.direction = ray_direction;
 
+            float t_lowest = 100000.0f;
+            int intersection = 0;
+
             Vec3 color = (Vec3){0, 0, 0};
 
             for (int i = 0; i < world->mesh_index; ++i)
             {
                 for (int j = 0; j < world->meshes[i]->tri_index; ++j)
                 {
-                    Tri3 cur_tri = world->meshes[i]->tris[j];
+                    Tri3 tri = world->meshes[i]->tris[j];
+                    tri.p1 = vec_add(tri.p1, tri.offset);
+                    tri.p2 = vec_add(tri.p2, tri.offset);
+                    tri.p3 = vec_add(tri.p3, tri.offset);
 
-                    if (ray_hit_tri(&ray, &cur_tri) >= 0.0f)
+                    float t = ray_hit_tri(&ray, &tri);
+                    if (t >= 0.0f && t < t_lowest)
                     {
-                        color.x = 1;
-                        color.y = 0;
-                        color.z = 0;
+                        t_lowest = t;
+
+                        color = tri.mat.color;
                     }
                 }
             }
