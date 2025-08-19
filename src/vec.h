@@ -11,6 +11,7 @@ Vec3 vec_mult(Vec3 a, Vec3 b);
 Vec3 vec_div(Vec3 a, Vec3 b);
 
 float vec_dot(Vec3 a, Vec3 b);
+Vec3 vec_cross(Vec3 a, Vec3 b);
 
 Vec3 vec_unit(Vec3 a);
 
