@@ -3,7 +3,7 @@
 
 #include "vec.h"
 
-typedef struct Sphere {
+typedef struct {
     Vec3 pos;
     float radius;
 } Sphere;

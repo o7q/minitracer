@@ -4,6 +4,6 @@
 #include "ray.h"
 #include "object.h"
 
-int hit_sphere(const Sphere* sphere, const Ray3* ray);
+float hit_sphere(const Sphere* sphere, const Ray3* ray);
 
 #endif
