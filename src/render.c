@@ -34,7 +34,9 @@ void render(const Cam3 *camera, const World *world)
             float t_lowest = 100000.0f;
             int intersection = 0;
 
-            Vec3 color = (Vec3){0, 0, 0};
+            Vec3 unit_direction = vec_unit(ray.direction);
+            float a = 0.5 * (unit_direction.y + 1.0);
+            Vec3 color  = vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){0.5 * a, 0.7 * a, 1.0 * a});
 
             for (int i = 0; i < world->mesh_index; ++i)
             {

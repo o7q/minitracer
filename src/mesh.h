@@ -25,4 +25,6 @@ Mesh3 *mesh_create(unsigned int max_tris);
 void mesh_add_tri(Mesh3 *mesh, Tri3 tri);
 void mesh_delete(Mesh3 *mesh);
 
+Vec3 tri_normal(const Tri3 *tri);
+
 #endif

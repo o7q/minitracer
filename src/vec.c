@@ -21,7 +21,7 @@ Vec3 vec_cross(Vec3 a, Vec3 b)
 
 Vec3 vec_unit(Vec3 a)
 {
-    float m = sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
+    float m = vec_length(a);
     return (Vec3){a.x / m, a.y / m, a.z / m};
 }
 

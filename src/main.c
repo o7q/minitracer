@@ -25,18 +25,22 @@ int main()
     Mesh3 *mesh = mesh_create(3);
 
     Tri3 tri;
-    tri.p1 = (Vec3){0, 0, 0};
-    tri.p2 = (Vec3){3, 0, 0};
-    tri.p3 = (Vec3){1.5, 3, 0};
+    tri.p1 = (Vec3){0, 0, -5};
+    tri.p2 = (Vec3){0, -2, -2.5};
+    tri.p3 = (Vec3){0, 0, -2};
     tri.offset = (Vec3){0, 0, -2};
-    tri.mat = (Mat){(Vec3){1, 0, 0}, 1.0f};
+    tri.normal = tri_normal(&tri);
+    tri.mat = (Mat){vec_unit(tri.normal), 1.0f};
+
+    printf("%.3f", tri.normal.x);
 
     Tri3 tri2;
-    tri2.p1 = (Vec3){0, 0, 0};
+    tri2.p1 = (Vec3){0, 0, -9};
     tri2.p2 = (Vec3){5, 0, 0};
     tri2.p3 = (Vec3){4, 6, 0};
     tri2.offset = (Vec3){0, 0, -5};
-    tri2.mat = (Mat){(Vec3){0, 0, 1}, 1.0f};
+    tri2.normal = tri_normal(&tri2);
+    tri2.mat = (Mat){vec_unit(tri2.normal), 1.0f};
 
     mesh_add_tri(mesh, tri);
     mesh_add_tri(mesh, tri2);
