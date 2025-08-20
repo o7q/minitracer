@@ -10,52 +10,33 @@ Vec3 ray_at(const Ray3 *ray, float t)
         ray->origin.z + t * ray->direction.z};
 }
 
-Vec3 ray_color(const Ray3 *ray, const World *world)
+// Möller–Trumbore intersection
+// thanks Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
+Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri)
 {
-
-}
-
-float ray_hit_tri(const Ray3 *ray, const Tri3 *tri)
-{
-    const float epsilon = 0.000001;
+    Ray3Hit hit;
 
     Vec3 edge1 = vec_sub(tri->p2, tri->p1);
     Vec3 edge2 = vec_sub(tri->p3, tri->p1);
+    Vec3 normal = vec_cross(edge1, edge2);
 
-    Vec3 cross_rayDir_edge2 = vec_cross(ray->direction, edge2);
+    float det = -vec_dot(ray->direction, normal);
+    float invdet = 1.0f / det;
 
-    float det = vec_dot(edge1, cross_rayDir_edge2);
+    Vec3 ao = vec_sub(ray->origin, tri->p1);
+    Vec3 dao = vec_cross(ao, ray->direction);
 
-    if (det > -epsilon && det < epsilon)
-    {
-        return -1;
-    }
+    float dst = vec_dot(ao, normal) * invdet;
+    float u = vec_dot(edge2, dao) * invdet;
+    float v = -vec_dot(edge1, dao) * invdet;
+    float w = 1.0f - u - v;
 
-    float inv_det = 1.0f / det;
+    hit.hit = det >= 1e-6 && dst >= 0.0f && u >= 0.0f && v >= 0.0f && w >= 0.0f ? 1 : 0;
+    hit.pos = ray_at(ray, dst);
+    hit.normal = vec_unit((Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
+                                 tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
+                                 tri->p1_n.z * w + tri->p2_n.z * u + tri->p3_n.z * v});
+    hit.t = dst;
 
-    Vec3 orig_minus_vert0 = vec_sub(ray->origin, tri->p1);
-
-    float baryU = vec_dot(orig_minus_vert0, cross_rayDir_edge2) * inv_det;
-
-    if (baryU < 0.0 || baryU > 1.0f)
-    {
-        return -1;
-    }
-
-    Vec3 cross_oriMinusVert0_edge1 = vec_cross(orig_minus_vert0, edge1);
-
-    float baryV = vec_dot(ray->direction, cross_oriMinusVert0_edge1) * inv_det;
-    if (baryV < 0.0f || baryU + baryV > 1.0f)
-    {
-        return -1;
-    }
-
-    float t = vec_dot(edge2, cross_oriMinusVert0_edge1) * inv_det;
-
-    if (t < 0.0f)
-    {
-        return -1;
-    }
-
-    return t;
+    return hit;
 }

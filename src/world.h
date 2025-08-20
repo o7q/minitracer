@@ -3,7 +3,7 @@
 
 #include "mesh.h"
 
-typedef struct
+typedef struct World
 {
     Mesh3 **meshes;
     unsigned int mesh_index;

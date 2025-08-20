@@ -3,7 +3,8 @@
 
 #include "vec.h"
 
-typedef struct {
+typedef struct Mat
+{
     Vec3 color;
     float roughness;
 } Mat;

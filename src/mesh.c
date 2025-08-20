@@ -37,14 +37,14 @@ void mesh_delete(Mesh3 *mesh)
     free(mesh);
 }
 
-Vec3 tri_normal(const Tri3 *tri)
+void tri_init_normals(Tri3 *tri)
 {
     Vec3 u = vec_sub(tri->p2, tri->p1);
     Vec3 v = vec_sub(tri->p3, tri->p1);
 
-    Vec3 n = (Vec3){u.y * v.z - u.z * v.y,
-                    u.z * v.x - u.x * v.z,
-                    u.x * v.y - u.y * v.x};
-
-    return vec_unit(n);
+    Vec3 normal = vec_unit(vec_cross(u, v));
+    tri->normal = normal;
+    tri->p1_n = normal;
+    tri->p2_n = normal;
+    tri->p3_n = normal;
 }

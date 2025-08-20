@@ -5,14 +5,22 @@
 #include "mesh.h"
 #include "world.h"
 
-typedef struct
+typedef struct Ray3
 {
     Vec3 origin;
     Vec3 direction;
+    Vec3 color;
 } Ray3;
 
+typedef struct Ray3Hit
+{
+    Vec3 pos;
+    Vec3 normal;
+    int hit;
+    float t;
+} Ray3Hit;
+
 Vec3 ray_at(const Ray3 *ray, float t);
-float ray_hit_tri(const Ray3* ray, const Tri3* tri);
-Vec3 ray_color(const Ray3* ray, const World* world);
+Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri);
 
 #endif

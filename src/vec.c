@@ -7,6 +7,11 @@ Vec3 vec_sub(Vec3 a, Vec3 b) { return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
 Vec3 vec_mult(Vec3 a, Vec3 b) { return (Vec3){a.x * b.x, a.y * b.y, a.z * b.z}; }
 Vec3 vec_div(Vec3 a, Vec3 b) { return (Vec3){a.x / b.x, a.y / b.y, a.z / b.z}; }
 
+Vec3 vec_add_v(Vec3 a, float v) { return (Vec3){a.x + v, a.y + v, a.z + v}; }
+Vec3 vec_sub_v(Vec3 a, float v) { return (Vec3){a.x - v, a.y - v, a.z - v}; }
+Vec3 vec_mult_v(Vec3 a, float v) { return (Vec3){a.x * v, a.y * v, a.z * v}; }
+Vec3 vec_div_v(Vec3 a, float v) { return (Vec3){a.x / v, a.y / v, a.z / v}; }
+
 float vec_dot(Vec3 a, Vec3 b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;

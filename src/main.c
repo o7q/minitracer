@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <raylib.h>
 
@@ -7,12 +8,16 @@
 #include "world.h"
 #include "mesh.h"
 
-int main()
+#include "random.h"
+
+int main(void)
 {
-    int renderWidth = 100;
-    int renderHeight = 80;
-    int windowWidth = renderWidth * 8;
-    int windowHeight = renderHeight * 8;
+    random_init();
+
+    int renderWidth = 120;
+    int renderHeight = 100;
+    int windowWidth = renderWidth * 6;
+    int windowHeight = renderHeight * 6;
 
     Cam3 camera;
     camera.pos = (Vec3){0, 0, 0};
@@ -22,28 +27,51 @@ int main()
 
     World *world = world_create(100);
 
-    Mesh3 *mesh = mesh_create(3);
+    Mesh3 *mesh = mesh_create(1000);
 
-    Tri3 tri;
-    tri.p1 = (Vec3){0, 0, -5};
-    tri.p2 = (Vec3){0, -2, -2.5};
-    tri.p3 = (Vec3){0, 0, -2};
-    tri.offset = (Vec3){0, 0, -2};
-    tri.normal = tri_normal(&tri);
-    tri.mat = (Mat){vec_unit(tri.normal), 1.0f};
+    // Tri3 tri;
+    // tri.p1 = (Vec3){0, 0, -5};
+    // tri.p2 = (Vec3){0, 0, -2};
+    // tri.p3 = (Vec3){0, -2, -2.5};
+    // tri.mat = (Mat){(Vec3){1, 1, 0}, 1.0f};
+    // tri_init_normals(&tri);
 
-    printf("%.3f", tri.normal.x);
+    // Tri3 tri2;
+    // tri2.p1 = (Vec3){0, 0, -9};
+    // tri2.p2 = (Vec3){5, 0, 0};
+    // tri2.p3 = (Vec3){4, 6, 0};
+    // tri2.mat = (Mat){(Vec3){0, 1, 0}, 1.0f};
+    // tri_init_normals(&tri2);
 
-    Tri3 tri2;
-    tri2.p1 = (Vec3){0, 0, -9};
-    tri2.p2 = (Vec3){5, 0, 0};
-    tri2.p3 = (Vec3){4, 6, 0};
-    tri2.offset = (Vec3){0, 0, -5};
-    tri2.normal = tri_normal(&tri2);
-    tri2.mat = (Mat){vec_unit(tri2.normal), 1.0f};
+    Tri3 tri3;
+    tri3.p1 = (Vec3){25, 1, -50};
+    tri3.p2 = (Vec3){50, 1, 0};
+    tri3.p3 = (Vec3){-50, 1, 0};
+    tri3.mat = (Mat){(Vec3){0, 0, 1}, 1.0f};
+    tri_init_normals(&tri3);
 
-    mesh_add_tri(mesh, tri);
-    mesh_add_tri(mesh, tri2);
+    // mesh_add_tri(mesh, tri);
+    // mesh_add_tri(mesh, tri2);
+    mesh_add_tri(mesh, tri3);
+
+    for (int i = 0; i < 10; ++i)
+    {
+        Tri3 randtri;
+        randtri.p1.x = random_float() * 4;
+        randtri.p1.y = -random_float() * 4;
+        randtri.p1.z = -random_float() * 4;
+        randtri.p2.x = random_float() * 4;
+        randtri.p2.y = -random_float() * 4;
+        randtri.p2.z = -random_float() * 4;
+        randtri.p3.x = random_float() * 4;
+        randtri.p3.y = -random_float() * 4;
+        randtri.p3.z = -random_float() * 4;
+
+        randtri.mat.color = (Vec3){random_float(), random_float(), random_float()};
+        tri_init_normals(&randtri);
+
+        mesh_add_tri(mesh, randtri);
+    }
 
     world_add_mesh(world, mesh);
 
