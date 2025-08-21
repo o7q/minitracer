@@ -56,6 +56,11 @@ int main(void)
     // mesh_add_tri(mesh, tri2);
     mesh_add_tri(mesh, tri3);
 
+    Sphere3 sphere;
+    sphere.position = (Vec3){0, 2, -5};
+    sphere.radius = 2;
+    sphere.mat = (Mat){(Vec3){1.0f, 1.0f, 1.0f}, 0};
+
     for (int i = 0; i < 10; ++i)
     {
         Tri3 randtri;
@@ -76,18 +81,28 @@ int main(void)
     }
 
     world_add_object(world, mesh, OBJECT_MESH);
+    world_add_object(world, &sphere, OBJECT_SPHERE);
 
     InitWindow(windowWidth, windowHeight, "raytracer");
     SetWindowPosition(2500, 200);
+    HideCursor();
+
     RenderTexture2D target = LoadRenderTexture(renderWidth, renderHeight);
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
     {
         if (IsKeyDown(KEY_SPACE))
+        {
             camera.pos.y -= 0.1f;
+        }
         if (IsKeyDown(KEY_LEFT_SHIFT))
+        {
             camera.pos.y += 0.1f;
+        }
+
+        // Vector2 mouse_delta = GetMouseDelta();
+
         if (IsKeyDown(KEY_W))
         {
             camera.pos.z -= 0.1f * cosf(camera.rot.y);
@@ -108,19 +123,34 @@ int main(void)
             camera.pos.x += 0.1f * cosf(camera.rot.y);
             camera.pos.z -= 0.1f * sinf(camera.rot.y);
         }
-        // camera.pos.x += 0.1f;
         if (IsKeyDown(KEY_Z))
+        {
             camera.fov += 0.1f;
+        }
         if (IsKeyDown(KEY_X))
+        {
             camera.fov -= 0.1f;
+        }
         if (IsKeyDown(KEY_UP))
+        {
             camera.rot.x -= 0.1f;
+        }
         if (IsKeyDown(KEY_DOWN))
+        {
             camera.rot.x += 0.1f;
+        }
         if (IsKeyDown(KEY_LEFT))
+        {
             camera.rot.y += 0.1f;
+        }
         if (IsKeyDown(KEY_RIGHT))
+        {
             camera.rot.y -= 0.1f;
+        }
+
+        // camera.rot.y -= mouse_delta.x / 100.0f;
+        // camera.rot.x += mouse_delta.y / 100.0f;
+        //         SetMousePosition(50, 50);
 
         BeginTextureMode(target);
 

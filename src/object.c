@@ -42,7 +42,7 @@ void tri_init_normals(Tri3 *tri)
     Vec3 u = vec_sub(tri->p2, tri->p1);
     Vec3 v = vec_sub(tri->p3, tri->p1);
 
-    Vec3 normal = vec_unit(vec_cross(u, v));
+    Vec3 normal = vec_normalize(vec_cross(u, v));
     tri->normal = normal;
     tri->p1_n = normal;
     tri->p2_n = normal;

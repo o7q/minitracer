@@ -24,13 +24,18 @@ Vec3 vec_cross(Vec3 a, Vec3 b)
                   a.x * b.y - a.y * b.x};
 }
 
-Vec3 vec_unit(Vec3 a)
+float vec_length_squared(Vec3 a)
 {
-    float m = vec_length(a);
-    return (Vec3){a.x / m, a.y / m, a.z / m};
+    return a.x * a.x + a.y * a.y + a.z * a.z;
 }
 
 float vec_length(Vec3 a)
 {
-    return sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
+    return sqrtf(vec_length_squared(a));
+}
+
+Vec3 vec_normalize(Vec3 a)
+{
+    float m = vec_length(a);
+    return (Vec3){a.x / m, a.y / m, a.z / m};
 }
