@@ -10,12 +10,10 @@
 
 #include <math.h>
 
-#include "random.h"
+#include "math_utils.h"
 
 int main(void)
 {
-    random_init();
-
     int renderWidth = 120;
     int renderHeight = 100;
     int windowWidth = renderWidth * 6;
@@ -23,65 +21,59 @@ int main(void)
 
     Cam3 camera;
     camera.pos = (Vec3){0, 0, 0};
+    camera.rot = (Vec3){0, 0, 0};
     camera.fov = 1.0f;
     camera.width = renderWidth;
     camera.height = renderHeight;
 
     World *world = world_create(100);
-
     Mesh3 *mesh = mesh_create(1000);
 
-    // Tri3 tri;
-    // tri.p1 = (Vec3){0, 0, -5};
-    // tri.p2 = (Vec3){0, 0, -2};
-    // tri.p3 = (Vec3){0, -2, -2.5};
-    // tri.mat = (Mat){(Vec3){1, 1, 0}, 1.0f};
-    // tri_init_normals(&tri);
-
-    // Tri3 tri2;
-    // tri2.p1 = (Vec3){0, 0, -9};
-    // tri2.p2 = (Vec3){5, 0, 0};
-    // tri2.p3 = (Vec3){4, 6, 0};
-    // tri2.mat = (Mat){(Vec3){0, 1, 0}, 1.0f};
-    // tri_init_normals(&tri2);
-
-    Tri3 tri3;
-    tri3.p1 = (Vec3){25, 1, -50};
-    tri3.p2 = (Vec3){50, 1, 0};
-    tri3.p3 = (Vec3){-50, 1, 0};
-    tri3.mat = (Mat){(Vec3){0, 0, 1}, 1.0f};
-    tri_init_normals(&tri3);
-
-    // mesh_add_tri(mesh, tri);
-    // mesh_add_tri(mesh, tri2);
-    mesh_add_tri(mesh, tri3);
+    Tri3 floor;
+    floor.p1 = (Vec3){25, 1, -50};
+    floor.p2 = (Vec3){50, 1, 20};
+    floor.p3 = (Vec3){-50, 1, 20};
+    floor.mat.color = (Vec3){0.8, 0.4, 0.7};
+    floor.mat.emission = (Vec3){0, 0, 0};
+    floor.mat.emission_strength = 0.0f;
+    floor.mat.roughness = 1.0f;
+    tri_init_normals(&floor);
 
     Sphere3 sphere;
-    sphere.position = (Vec3){0, 2, -5};
-    sphere.radius = 2;
-    sphere.mat = (Mat){(Vec3){1.0f, 1.0f, 1.0f}, 0};
+    sphere.position = (Vec3){-1, 0, 0};
+    sphere.radius = 1;
+    sphere.mat.color = (Vec3){1.0f, 0.5f, 1.0f};
+    sphere.mat.emission = (Vec3){1, 1, 0.9};
+    sphere.mat.emission_strength = 0.0f;
+    sphere.mat.roughness = 0.0f;
 
-    for (int i = 0; i < 10; ++i)
-    {
-        Tri3 randtri;
-        randtri.p1.x = random_float() * 4;
-        randtri.p1.y = -random_float() * 4;
-        randtri.p1.z = -random_float() * 4;
-        randtri.p2.x = random_float() * 4;
-        randtri.p2.y = -random_float() * 4;
-        randtri.p2.z = -random_float() * 4;
-        randtri.p3.x = random_float() * 4;
-        randtri.p3.y = -random_float() * 4;
-        randtri.p3.z = -random_float() * 4;
+        Sphere3 sphere2;
+    sphere2.position = (Vec3){-1, 0, -2.5};
+    sphere2.radius = 1;
+    sphere2.mat.color = (Vec3){0.5f, 1.0f, 0.9f};
+    sphere2.mat.emission = (Vec3){1, 1, 0.9};
+    sphere2.mat.emission_strength = 0.0f;
+    sphere2.mat.roughness = 0.0f;
 
-        randtri.mat.color = (Vec3){random_float(), random_float(), random_float()};
-        tri_init_normals(&randtri);
+    Tri3 tri = tri_create((Vec3){0, -4, 0}, (Vec3){10, -4, 0}, (Vec3){5, -4, -10});
+    tri.mat.color = (Vec3){1, 1, 1};
+    tri.mat.emission = (Vec3){1, 1, 1};
+    tri.mat.emission_strength = 1.0f;
+    tri.mat.roughness = 0.0f;
 
-        mesh_add_tri(mesh, randtri);
-    }
+    // Tri3 tri2 = tri_create((Vec3){-5, -2, 0}, (Vec3){0, -2, 0}, (Vec3){-2.5, -1, -5});
+    // tri2.mat.color = (Vec3){1, 1, 1};
+    // tri2.mat.emission = (Vec3){1, 1, 0.9};
+    // tri2.mat.emission_strength = 1.0f;
+    // tri2.mat.roughness = 0.0f;
+
+    mesh_add_tri(mesh, floor);
+    mesh_add_tri(mesh, tri);
+    // mesh_add_tri(mesh, tri2);
 
     world_add_object(world, mesh, OBJECT_MESH);
     world_add_object(world, &sphere, OBJECT_SPHERE);
+    world_add_object(world, &sphere2, OBJECT_SPHERE);
 
     InitWindow(windowWidth, windowHeight, "raytracer");
     SetWindowPosition(2500, 200);

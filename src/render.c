@@ -9,7 +9,7 @@
 
 #include <math.h>
 
-#include "random.h"
+#include "math_utils.h"
 
 #include <float.h>
 
@@ -57,8 +57,8 @@ void render(const Cam3 *camera, const World *world)
     Vec3 viewport_top_left = vec_sub(camera->pos, (Vec3){viewport_width / 2.0f, viewport_height / 2.0f, camera->fov});
     Vec3 pixel00_pos = vec_add(viewport_top_left, (Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
 
-    int max_bounces = 4;
-    int samples = 1;
+    int max_bounces = 3;
+    int samples = 20;
 
     for (int y = 0; y < camera->height; ++y)
     {
@@ -89,6 +89,7 @@ void render(const Cam3 *camera, const World *world)
                 ray.origin = camera->pos;
                 ray.direction = ray_direction;
                 ray.color = (Vec3){1, 1, 1};
+                ray.radiance = (Vec3){0, 0, 0};
 
                 for (int j = 0; j < max_bounces; ++j)
                 {
@@ -113,24 +114,19 @@ void render(const Cam3 *camera, const World *world)
 
                     if (hit_info.hit)
                     {
-                        ray.color = vec_mult(ray.color, hit_mat.color);
-                        Vec3 i_n = vec_normalize(ray.direction);
-                        float d = vec_dot(i_n, hit_info.normal);
-                        ray.origin = hit_info.pos;
-                        ray.direction = vec_sub(i_n, vec_mult_v(hit_info.normal, 2.0f * d)); //(Vec3){hit_normal.x + random_float() / 10.0f, hit_normal.y + random_float() / 10.0f, hit_normal.z + random_float() / 10.0f};
-                        // ray.direction = (Vec3){ray.direction.x + random_float() / 10.0f, ray.direction.y + random_float() / 10.0f, ray.direction.z + random_float() / 10.0f};
+                        ray_bounce(&ray, &hit_info, &hit_mat);
                     }
                     else
                     {
-                        Vec3 unit_direction = vec_normalize(ray.direction);
-                        float a = 0.5 * (unit_direction.y + 1.0);
-                        ray.color = vec_mult(ray.color, vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){0.5 * a, 0.7 * a, 1.0 * a}));
+                        // Vec3 unit_direction = vec_normalize(ray.direction);
+                        // float a = 0.5 * (unit_direction.y + 1.0);
+                        // ray.color = vec_mult(ray.color, vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){0.5 * a, 0.7 * a, 1.0 * a}));
 
                         break;
                     }
                 }
 
-                render_color = vec_add(render_color, ray.color);
+                render_color = vec_add(render_color, ray.radiance);
             }
 
             render_color = vec_div_v(render_color, (float)samples);

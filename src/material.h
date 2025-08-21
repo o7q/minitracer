@@ -6,6 +6,8 @@
 typedef struct Mat
 {
     Vec3 color;
+    Vec3 emission;
+    float emission_strength;
     float roughness;
 } Mat;
 

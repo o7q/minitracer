@@ -1,8 +1,9 @@
 #include "ray.h"
 
-#include "vec.h"
-
 #include <math.h>
+
+#include "vec.h"
+#include "math_utils.h"
 
 Vec3 ray_at(const Ray3 *ray, float t)
 {
@@ -46,31 +47,42 @@ Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri)
 Ray3Hit ray_hit_sphere(const Ray3 *ray, const Sphere3 *sphere)
 {
     Ray3Hit hit;
+    hit.hit = 0;
 
     Vec3 oc = vec_sub(sphere->position, ray->origin);
     float a = vec_length_squared(ray->direction);
     float h = vec_dot(ray->direction, oc);
     float c = vec_length_squared(oc) - sphere->radius * sphere->radius;
     float discriminant = h * h - a * c;
-    if (discriminant < 0)
+    if (discriminant >= 0)
     {
-        hit.hit = 0;
-    }
-    else
-    {
-        hit.t = (h - sqrtf(discriminant)) / a;
-        if (hit.t < 0.0f)
-        {
-            hit.hit = 0;
-        }
-        else
+        float t = (h - sqrtf(discriminant)) / a;
+        if (t >= 0.0f)
         {
             hit.hit = 1;
+            hit.t = t;
             hit.pos = ray_at(ray, hit.t);
-            hit.normal = vec_sub(hit.pos, sphere->position);
-            hit.normal = vec_normalize(hit.normal);
+            hit.normal = vec_normalize(vec_sub(hit.pos, sphere->position));
         }
     }
 
     return hit;
+}
+
+void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
+{
+    // apply color
+    ray->color = vec_mult(ray->color, mat->color);
+
+    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength); 
+    ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
+
+    // reflective bounce
+    Vec3 i_n = vec_normalize(ray->direction);
+    float d = vec_dot(i_n, hit->normal);
+    ray->origin = hit->pos;
+    ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
+
+    // scatter from roughness
+    ray->direction = vec_lerp(ray->direction, random_hemi(hit->normal), mat->roughness);
 }

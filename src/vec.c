@@ -2,6 +2,8 @@
 
 #include <math.h>
 
+#include "math_utils.h"
+
 Vec3 vec_add(Vec3 a, Vec3 b) { return (Vec3){a.x + b.x, a.y + b.y, a.z + b.z}; }
 Vec3 vec_sub(Vec3 a, Vec3 b) { return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
 Vec3 vec_mult(Vec3 a, Vec3 b) { return (Vec3){a.x * b.x, a.y * b.y, a.z * b.z}; }
@@ -38,4 +40,9 @@ Vec3 vec_normalize(Vec3 a)
 {
     float m = vec_length(a);
     return (Vec3){a.x / m, a.y / m, a.z / m};
+}
+
+Vec3 vec_lerp(Vec3 a, Vec3 b, float t)
+{
+    return (Vec3){lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t)};
 }
