@@ -6,7 +6,9 @@
 #include "camera.h"
 #include "render.h"
 #include "world.h"
-#include "mesh.h"
+#include "object.h"
+
+#include <math.h>
 
 #include "random.h"
 
@@ -73,7 +75,7 @@ int main(void)
         mesh_add_tri(mesh, randtri);
     }
 
-    world_add_mesh(world, mesh);
+    world_add_object(world, mesh, OBJECT_MESH);
 
     InitWindow(windowWidth, windowHeight, "raytracer");
     SetWindowPosition(2500, 200);
@@ -87,25 +89,38 @@ int main(void)
         if (IsKeyDown(KEY_LEFT_SHIFT))
             camera.pos.y += 0.1f;
         if (IsKeyDown(KEY_W))
-            camera.pos.z -= 0.1f;
+        {
+            camera.pos.z -= 0.1f * cosf(camera.rot.y);
+            camera.pos.x -= 0.1f * sinf(camera.rot.y);
+        }
         if (IsKeyDown(KEY_S))
-            camera.pos.z += 0.1f;
+        {
+            camera.pos.z += 0.1f * cosf(camera.rot.y);
+            camera.pos.x += 0.1f * sinf(camera.rot.y);
+        }
         if (IsKeyDown(KEY_A))
-            camera.pos.x -= 0.1f;
+        {
+            camera.pos.x -= 0.1f * cosf(camera.rot.y);
+            camera.pos.z += 0.1f * sinf(camera.rot.y);
+        }
         if (IsKeyDown(KEY_D))
-            camera.pos.x += 0.1f;
+        {
+            camera.pos.x += 0.1f * cosf(camera.rot.y);
+            camera.pos.z -= 0.1f * sinf(camera.rot.y);
+        }
+        // camera.pos.x += 0.1f;
         if (IsKeyDown(KEY_Z))
             camera.fov += 0.1f;
         if (IsKeyDown(KEY_X))
             camera.fov -= 0.1f;
         if (IsKeyDown(KEY_UP))
-            camera.rot.x += 0.1f;
-        if (IsKeyDown(KEY_DOWN))
             camera.rot.x -= 0.1f;
+        if (IsKeyDown(KEY_DOWN))
+            camera.rot.x += 0.1f;
         if (IsKeyDown(KEY_LEFT))
-            camera.rot.y -= 0.1f;
-        if (IsKeyDown(KEY_RIGHT))
             camera.rot.y += 0.1f;
+        if (IsKeyDown(KEY_RIGHT))
+            camera.rot.y -= 0.1f;
 
         BeginTextureMode(target);
 

@@ -2,7 +2,7 @@
 #define RAY_H
 
 #include "vec.h"
-#include "mesh.h"
+#include "object.h"
 #include "world.h"
 
 typedef struct Ray3

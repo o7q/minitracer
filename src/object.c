@@ -1,4 +1,4 @@
-#include "mesh.h"
+#include "object.h"
 
 #include <stdlib.h>
 
@@ -47,4 +47,16 @@ void tri_init_normals(Tri3 *tri)
     tri->p1_n = normal;
     tri->p2_n = normal;
     tri->p3_n = normal;
+}
+
+Tri3 tri_create(Vec3 p1, Vec3 p2, Vec3 p3)
+{
+    Tri3 tri;
+    tri.p1 = p1;
+    tri.p2 = p2;
+    tri.p3 = p3;
+
+    tri_init_normals(&tri);
+
+    return tri;
 }

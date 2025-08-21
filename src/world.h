@@ -1,18 +1,20 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include "mesh.h"
+#include "object.h"
 
 typedef struct World
 {
-    Mesh3 **meshes;
-    unsigned int mesh_index;
-    unsigned int max_meshes;
+    void **objects;
+    ObjectType *objects_track;
+
+    unsigned int object_index;
+    unsigned int max_objects;
 
 } World;
 
-World *world_create(unsigned int max_meshes);
-void world_add_mesh(World *world, Mesh3 *mesh);
+World *world_create(unsigned int max_objects);
+void world_add_object(World *world, void *object, ObjectType object_type);
 void world_delete(World *world);
 
 #endif

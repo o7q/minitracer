@@ -2,24 +2,26 @@
 
 #include <stdlib.h>
 
-World *world_create(unsigned int max_meshes)
+World *world_create(unsigned int max_objects)
 {
     World *world = malloc(sizeof(World));
-    world->meshes = (Mesh3 **)malloc(sizeof(Mesh3 *) * max_meshes);
-    world->mesh_index = 0;
-    world->max_meshes = max_meshes;
+    world->objects = (void **)malloc(sizeof(void *) * max_objects);
+    world->objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
+    world->object_index = 0;
+    world->max_objects = max_objects;
     return world;
 }
 
-void world_add_mesh(World *world, Mesh3 *mesh)
+void world_add_object(World *world, void *object, ObjectType object_type)
 {
-    if (world->mesh_index >= world->max_meshes)
+    if (world->object_index >= world->max_objects)
     {
         return;
     }
 
-    world->meshes[world->mesh_index] = mesh;
-    ++world->mesh_index;
+    world->objects[world->object_index] = object;
+    world->objects_track[world->object_index] = object_type;
+    ++world->object_index;
 }
 
 void world_delete(World *world)
@@ -29,16 +31,21 @@ void world_delete(World *world)
         return;
     }
 
-    if (world->meshes)
+    if (world->objects)
     {
-        for (unsigned int i = 0; i < world->mesh_index; ++i)
+        for (unsigned int i = 0; i < world->object_index; ++i)
         {
-            if (world->meshes[i])
+            if (world->objects[i])
             {
-                free(world->meshes[i]);
+                free(world->objects[i]);
             }
         }
-        free(world->meshes);
+        free(world->objects);
+    }
+
+    if (world->objects_track)
+    {
+        free(world->objects_track);
     }
 
     free(world);
