@@ -14,20 +14,12 @@
 
 int main(void)
 {
-    int renderWidth = 120;
-    int renderHeight = 100;
-    int windowWidth = renderWidth * 6;
-    int windowHeight = renderHeight * 6;
+    Cam camera = camera_create();
+    Renderer renderer = renderer_create(120, 100, 1);
+    renderer.samples = 6;
 
-    Cam camera;
-    camera.position = (Vec3){0, 0, 0};
-    camera.rotation = (Vec3){0, 0, 0};
-    camera.fov = 1.0f;
-    camera.width = renderWidth;
-    camera.height = renderHeight;
-
-    World *world = world_create(100);
-    MeshObj *mesh = mesh_create(1000);
+    World world = world_create(100);
+    MeshObj mesh = mesh_create(1000);
 
     TriObj floor;
     floor.p1 = (Vec3){25, 1, -50};
@@ -61,18 +53,17 @@ int main(void)
     tri.mat.emission_strength = 1.0f;
     tri.mat.roughness = 0.25f;
 
-    mesh_add_tri(mesh, floor);
-    mesh_add_tri(mesh, tri);
+    mesh_add_tri(&mesh, floor);
+    mesh_add_tri(&mesh, tri);
 
-    world_add_object(world, mesh, OBJECT_MESH);
-    world_add_object(world, &sphere, OBJECT_SPHERE);
-    world_add_object(world, &sphere2, OBJECT_SPHERE);
+    world_add_object(&world, &mesh, OBJECT_MESH);
+    world_add_object(&world, &sphere, OBJECT_SPHERE);
+    world_add_object(&world, &sphere2, OBJECT_SPHERE);
 
-    InitWindow(windowWidth, windowHeight, "raytracer");
+    InitWindow(renderer.width * 6, renderer.height * 6, "raytracer");
     SetWindowPosition(2500, 200);
-    HideCursor();
 
-    RenderTexture2D target = LoadRenderTexture(renderWidth, renderHeight);
+    RenderTexture2D target = LoadRenderTexture(renderer.width, renderer.height);
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
@@ -85,8 +76,6 @@ int main(void)
         {
             camera.position.y += 0.1f;
         }
-
-        // Vector2 mouse_delta = GetMouseDelta();
 
         if (IsKeyDown(KEY_W))
         {
@@ -133,24 +122,19 @@ int main(void)
             camera.rotation.y -= 0.1f;
         }
 
-        // camera.rotation.y -= mouse_delta.x / 100.0f;
-        // camera.rotation.x += mouse_delta.y / 100.0f;
-        //         SetMousePosition(50, 50);
-
+    
+        render(&renderer, &camera, &world);
+        
         BeginTextureMode(target);
-
         ClearBackground(BLACK);
-        render(&camera, world);
-
+        UpdateTexture(target.texture, renderer.pixels);
         EndTextureMode();
 
         BeginDrawing();
-
         ClearBackground(BLACK);
-        Rectangle src = {0, 0, (float)renderWidth, -(float)renderHeight};
-        Rectangle dest = {0, 0, (float)windowWidth, (float)windowHeight};
+        Rectangle src = {0, 0, (float)renderer.width, (float)renderer.height};
+        Rectangle dest = {0, 0, (float)renderer.width * 6, (float)renderer.height * 6};
         DrawTexturePro(target.texture, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
-
         EndDrawing();
     }
 

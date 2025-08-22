@@ -24,3 +24,8 @@ float lerp(float a, float b, float t)
 {
     return a + t * (b - a);
 }
+
+unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
+{
+    return y * width + x;
+}

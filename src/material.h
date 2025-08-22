@@ -11,4 +11,6 @@ typedef struct Mat
     float roughness;
 } Mat;
 
+Mat material_create();
+
 #endif

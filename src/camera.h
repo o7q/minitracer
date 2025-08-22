@@ -9,9 +9,8 @@ typedef struct Cam
     Vec3 rotation;
 
     float fov;
-    
-    int width;
-    int height;
 } Cam;
+
+Cam camera_create();
 
 #endif

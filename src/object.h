@@ -37,7 +37,7 @@ typedef struct SphereObj
     Mat mat;
 } SphereObj;
 
-MeshObj *mesh_create(unsigned int max_tris);
+MeshObj mesh_create(unsigned int max_tris);
 void mesh_add_tri(MeshObj *mesh, TriObj tri);
 void mesh_delete(MeshObj *mesh);
 

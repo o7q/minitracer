@@ -1,17 +1,20 @@
 #include "render.h"
 
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <raylib.h>
+#include <stdlib.h>
 #include <float.h>
 
 #include "ray.h"
 #include "camera.h"
-
-
 #include "math_utils.h"
 
+Renderer renderer_create(unsigned int width, unsigned int height, unsigned int threads)
+{
+    Renderer renderer = {width, height, 4, 5, threads};
+    renderer.pixels = (Color *)malloc(sizeof(Color) * width * height);
+    return renderer;
+}
 
 void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
 {
@@ -49,30 +52,24 @@ void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *
     }
 }
 
-void render(const Cam *camera, const World *world)
+void render(Renderer *renderer, const Cam *camera, const World *world)
 {
     float viewport_height = 1.0f;
-    float viewport_width = viewport_height * ((float)camera->width / camera->height);
+    float viewport_width = viewport_height * ((float)renderer->width / renderer->height);
 
-    float pixel_delta_u = viewport_width / camera->width;
-    float pixel_delta_v = viewport_height / camera->height;
+    float pixel_delta_u = viewport_width / renderer->width;
+    float pixel_delta_v = viewport_height / renderer->height;
 
     Vec3 viewport_top_left = vec_sub(camera->position, (Vec3){viewport_width / 2.0f, viewport_height / 2.0f, camera->fov});
     Vec3 pixel00_pos = vec_add(viewport_top_left, (Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
 
-    int max_bounces = 4;
-    int samples = 20;
-
-    for (int y = 0; y < camera->height; ++y)
+    for (int y = 0; y < renderer->height; ++y)
     {
-        for (int x = 0; x < camera->width; ++x)
+        for (int x = 0; x < renderer->width; ++x)
         {
             Vec3 pixel_center = vec_add(pixel00_pos, (Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
-
             Vec3 ray_direction = vec_sub(pixel_center, camera->position);
-
             Vec3 ray_dir_normal = vec_normalize(ray_direction);
-
             Vec3 ray_rotated_normal = ray_dir_normal;
 
             float temp_y = ray_dir_normal.y * cosf(camera->rotation.x) - ray_dir_normal.z * sinf(camera->rotation.x);
@@ -86,7 +83,7 @@ void render(const Cam *camera, const World *world)
 
             Vec3 render_color = (Vec3){0, 0, 0};
 
-            for (int i = 0; i < samples; ++i)
+            for (int i = 0; i < renderer->samples; ++i)
             {
                 Ray3 ray;
                 ray.origin = camera->position;
@@ -94,7 +91,7 @@ void render(const Cam *camera, const World *world)
                 ray.color = (Vec3){1, 1, 1};
                 ray.radiance = (Vec3){0, 0, 0};
 
-                for (int j = 0; j < max_bounces; ++j)
+                for (int j = 0; j < renderer->max_bounces; ++j)
                 {
                     float t_lowest = FLT_MAX;
 
@@ -131,7 +128,7 @@ void render(const Cam *camera, const World *world)
                 render_color = vec_add(render_color, ray.radiance);
             }
 
-            render_color = vec_div_v(render_color, (float)samples);
+            render_color = vec_div_v(render_color, (float)renderer->samples);
 
             if (render_color.x > 1.0f)
                 render_color.x = 1.0f;
@@ -140,7 +137,7 @@ void render(const Cam *camera, const World *world)
             if (render_color.z > 1.0f)
                 render_color.z = 1.0f;
 
-            DrawPixel(x, y, (Color){render_color.x * 255, render_color.y * 255, render_color.z * 255, 255});
+            renderer->pixels[index_2d_to_1d(x, y, renderer->width)] = (Color){render_color.x * 255.0f, render_color.y * 255.0f, render_color.z * 255.0f, 255.0f};
         }
     }
 }

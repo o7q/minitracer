@@ -6,7 +6,23 @@
 #include "object.h"
 #include "ray.h"
 
-void render(const Cam *camera, const World *world);
+#include <raylib.h>
+
+typedef struct Renderer
+{
+    const unsigned int width, height;
+    
+    unsigned int max_bounces;
+    unsigned int samples;
+    
+    const unsigned int threads;
+
+    Color *pixels;
+} Renderer;
+
+Renderer renderer_create(unsigned int width, unsigned int height, unsigned int threads);
+
+void render(Renderer* renderer, const Cam *camera, const World *world);
 void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);

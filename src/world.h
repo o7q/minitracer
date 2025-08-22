@@ -13,7 +13,7 @@ typedef struct World
 
 } World;
 
-World *world_create(unsigned int max_objects);
+World world_create(unsigned int max_objects);
 void world_add_object(World *world, void *object, ObjectType object_type);
 void world_delete(World *world);
 

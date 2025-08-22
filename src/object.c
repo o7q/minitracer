@@ -2,12 +2,12 @@
 
 #include <stdlib.h>
 
-MeshObj *mesh_create(unsigned int max_tris)
+MeshObj mesh_create(unsigned int max_tris)
 {
-    MeshObj *mesh = malloc(sizeof(MeshObj));
-    mesh->tris = malloc(sizeof(TriObj) * max_tris);
-    mesh->tri_index = 0;
-    mesh->max_tris = max_tris;
+    MeshObj mesh;
+    mesh.tris = malloc(sizeof(TriObj) * max_tris);
+    mesh.tri_index = 0;
+    mesh.max_tris = max_tris;
     return mesh;
 }
 
@@ -55,6 +55,7 @@ TriObj tri_create(Vec3 p1, Vec3 p2, Vec3 p3)
     tri.p1 = p1;
     tri.p2 = p2;
     tri.p3 = p3;
+    tri.mat = material_create();
 
     tri_init_normals(&tri);
 
