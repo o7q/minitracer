@@ -15,7 +15,7 @@ Vec3 ray_at(const Ray3 *ray, float t)
 
 // Möller–Trumbore intersection
 // thanks Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
-Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri)
+Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
 {
     Ray3Hit hit;
 
@@ -44,7 +44,7 @@ Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri)
     return hit;
 }
 
-Ray3Hit ray_hit_sphere(const Ray3 *ray, const Sphere3 *sphere)
+Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere)
 {
     Ray3Hit hit;
     hit.hit = 0;

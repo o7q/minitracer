@@ -2,16 +2,16 @@
 
 #include <stdlib.h>
 
-Mesh3 *mesh_create(unsigned int max_tris)
+MeshObj *mesh_create(unsigned int max_tris)
 {
-    Mesh3 *mesh = malloc(sizeof(Mesh3));
-    mesh->tris = malloc(sizeof(Tri3) * max_tris);
+    MeshObj *mesh = malloc(sizeof(MeshObj));
+    mesh->tris = malloc(sizeof(TriObj) * max_tris);
     mesh->tri_index = 0;
     mesh->max_tris = max_tris;
     return mesh;
 }
 
-void mesh_add_tri(Mesh3 *mesh, Tri3 tri)
+void mesh_add_tri(MeshObj *mesh, TriObj tri)
 {
     if (mesh->tri_index >= mesh->max_tris)
     {
@@ -22,7 +22,7 @@ void mesh_add_tri(Mesh3 *mesh, Tri3 tri)
     ++mesh->tri_index;
 }
 
-void mesh_delete(Mesh3 *mesh)
+void mesh_delete(MeshObj *mesh)
 {
     if (!mesh)
     {
@@ -37,7 +37,7 @@ void mesh_delete(Mesh3 *mesh)
     free(mesh);
 }
 
-void tri_init_normals(Tri3 *tri)
+void tri_init_normals(TriObj *tri)
 {
     Vec3 u = vec_sub(tri->p2, tri->p1);
     Vec3 v = vec_sub(tri->p3, tri->p1);
@@ -49,9 +49,9 @@ void tri_init_normals(Tri3 *tri)
     tri->p3_n = normal;
 }
 
-Tri3 tri_create(Vec3 p1, Vec3 p2, Vec3 p3)
+TriObj tri_create(Vec3 p1, Vec3 p2, Vec3 p3)
 {
-    Tri3 tri;
+    TriObj tri;
     tri.p1 = p1;
     tri.p2 = p2;
     tri.p3 = p3;

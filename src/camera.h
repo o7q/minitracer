@@ -3,13 +3,15 @@
 
 #include "vec.h"
 
-typedef struct Cam3
+typedef struct Cam
 {
-    Vec3 pos;
-    Vec3 rot;
+    Vec3 position;
+    Vec3 rotation;
+
     float fov;
+    
     int width;
     int height;
-} Cam3;
+} Cam;
 
 #endif

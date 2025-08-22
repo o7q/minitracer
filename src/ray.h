@@ -21,8 +21,8 @@ typedef struct Ray3Hit
 } Ray3Hit;
 
 Vec3 ray_at(const Ray3 *ray, float t);
-Ray3Hit ray_hit_tri(const Ray3 *ray, const Tri3 *tri);
-Ray3Hit ray_hit_sphere(const Ray3 *ray, const Sphere3 *sphere);
+Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri);
+Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere);
 
 void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat);
 

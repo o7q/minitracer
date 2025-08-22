@@ -6,41 +6,42 @@
 
 typedef enum ObjectType
 {
+    OBJECT_TRI,
     OBJECT_MESH,
     OBJECT_SPHERE
 } ObjectType;
 
-typedef struct Tri3
+typedef struct TriObj
 {
     Vec3 p1, p2, p3;
     Vec3 p1_n, p2_n, p3_n;
     Vec3 normal;
 
     Mat mat;
-} Tri3;
+} TriObj;
 
-typedef struct Mesh3
+typedef struct MeshObj
 {
-    Tri3 *tris;
+    TriObj *tris;
     Vec3 position;
 
     unsigned int max_tris;
     unsigned int tri_index;
-} Mesh3;
+} MeshObj;
 
-typedef struct Sphere3
+typedef struct SphereObj
 {
     Vec3 position;
     float radius;
 
     Mat mat;
-} Sphere3;
+} SphereObj;
 
-Mesh3 *mesh_create(unsigned int max_tris);
-void mesh_add_tri(Mesh3 *mesh, Tri3 tri);
-void mesh_delete(Mesh3 *mesh);
+MeshObj *mesh_create(unsigned int max_tris);
+void mesh_add_tri(MeshObj *mesh, TriObj tri);
+void mesh_delete(MeshObj *mesh);
 
-void tri_init_normals(Tri3 *tri);
-Tri3 tri_create(Vec3 p1, Vec3 p2, Vec3 p3);
+void tri_init_normals(TriObj *tri);
+TriObj tri_create(Vec3 p1, Vec3 p2, Vec3 p3);
 
 #endif
