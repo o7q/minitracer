@@ -1,22 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <math.h>
 #include <raylib.h>
 
 #include "camera.h"
 #include "render.h"
 #include "world.h"
 #include "object.h"
-
-#include <math.h>
-
 #include "math_utils.h"
 
 int main(void)
 {
+    random_init();
+
     Cam camera = camera_create();
     Renderer renderer = renderer_create(120, 100, 1);
-    renderer.samples = 6;
+    renderer.samples = 20;
 
     World world = world_create(100);
     MeshObj mesh = mesh_create(1000);
@@ -122,9 +122,8 @@ int main(void)
             camera.rotation.y -= 0.1f;
         }
 
-    
         render(&renderer, &camera, &world);
-        
+
         BeginTextureMode(target);
         ClearBackground(BLACK);
         UpdateTexture(target.texture, renderer.pixels);

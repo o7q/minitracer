@@ -4,14 +4,18 @@
 #include <raylib.h>
 #include <stdlib.h>
 #include <float.h>
+#include <stdio.h>
 
 #include "ray.h"
 #include "camera.h"
 #include "math_utils.h"
 
-Renderer renderer_create(unsigned int width, unsigned int height, unsigned int threads)
+#include <pthread.h>
+
+Renderer renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
-    Renderer renderer = {width, height, 4, 5, threads};
+    Renderer renderer = {width, height, 4, 5, thread_count};
+    renderer.threads = (pthread_t*)malloc(sizeof(pthread_t) * thread_count);
     renderer.pixels = (Color *)malloc(sizeof(Color) * width * height);
     return renderer;
 }
@@ -52,8 +56,16 @@ void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *
     }
 }
 
-void render(Renderer *renderer, const Cam *camera, const World *world)
+void *render_thread(void *data)
 {
+    RenderThreadData *render_thread_data = (RenderThreadData *)data;
+
+    Renderer *renderer = render_thread_data->renderer;
+    Cam *camera = render_thread_data->camera;
+    World *world = render_thread_data->world;
+    unsigned int px_start = render_thread_data->px_start;
+    unsigned int px_end = render_thread_data->px_end;
+
     float viewport_height = 1.0f;
     float viewport_width = viewport_height * ((float)renderer->width / renderer->height);
 
@@ -63,81 +75,111 @@ void render(Renderer *renderer, const Cam *camera, const World *world)
     Vec3 viewport_top_left = vec_sub(camera->position, (Vec3){viewport_width / 2.0f, viewport_height / 2.0f, camera->fov});
     Vec3 pixel00_pos = vec_add(viewport_top_left, (Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
 
-    for (int y = 0; y < renderer->height; ++y)
+    for (int i = px_start; i < px_end; ++i)
     {
-        for (int x = 0; x < renderer->width; ++x)
+        int x = i % renderer->width;
+        int y = i / renderer->width;
+
+        Vec3 pixel_center = vec_add(pixel00_pos, (Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
+        Vec3 ray_direction = vec_sub(pixel_center, camera->position);
+        Vec3 ray_dir_normal = vec_normalize(ray_direction);
+        Vec3 ray_rotated_normal = ray_dir_normal;
+
+        float temp_y = ray_dir_normal.y * cosf(camera->rotation.x) - ray_dir_normal.z * sinf(camera->rotation.x);
+        float temp_z = ray_dir_normal.y * sinf(camera->rotation.x) + ray_dir_normal.z * cosf(camera->rotation.x);
+
+        ray_rotated_normal.x = ray_dir_normal.x * cosf(camera->rotation.y) + temp_z * sinf(camera->rotation.y);
+        ray_rotated_normal.y = temp_y;
+        ray_rotated_normal.z = temp_z * cosf(camera->rotation.y) - ray_dir_normal.x * sinf(camera->rotation.y);
+
+        ray_direction = vec_mult_v(ray_rotated_normal, vec_length(ray_direction));
+
+        Vec3 render_color = (Vec3){0, 0, 0};
+
+        for (int i = 0; i < renderer->samples; ++i)
         {
-            Vec3 pixel_center = vec_add(pixel00_pos, (Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
-            Vec3 ray_direction = vec_sub(pixel_center, camera->position);
-            Vec3 ray_dir_normal = vec_normalize(ray_direction);
-            Vec3 ray_rotated_normal = ray_dir_normal;
+            Ray3 ray;
+            ray.origin = camera->position;
+            ray.direction = ray_direction;
+            ray.color = (Vec3){1, 1, 1};
+            ray.radiance = (Vec3){0, 0, 0};
 
-            float temp_y = ray_dir_normal.y * cosf(camera->rotation.x) - ray_dir_normal.z * sinf(camera->rotation.x);
-            float temp_z = ray_dir_normal.y * sinf(camera->rotation.x) + ray_dir_normal.z * cosf(camera->rotation.x);
-
-            ray_rotated_normal.x = ray_dir_normal.x * cosf(camera->rotation.y) + temp_z * sinf(camera->rotation.y);
-            ray_rotated_normal.y = temp_y;
-            ray_rotated_normal.z = temp_z * cosf(camera->rotation.y) - ray_dir_normal.x * sinf(camera->rotation.y);
-
-            ray_direction = vec_mult_v(ray_rotated_normal, vec_length(ray_direction));
-
-            Vec3 render_color = (Vec3){0, 0, 0};
-
-            for (int i = 0; i < renderer->samples; ++i)
+            for (int j = 0; j < renderer->max_bounces; ++j)
             {
-                Ray3 ray;
-                ray.origin = camera->position;
-                ray.direction = ray_direction;
-                ray.color = (Vec3){1, 1, 1};
-                ray.radiance = (Vec3){0, 0, 0};
+                float t_lowest = FLT_MAX;
 
-                for (int j = 0; j < renderer->max_bounces; ++j)
+                Ray3Hit hit_info;
+                hit_info.hit = 0;
+                Mat hit_mat;
+
+                for (int k = 0; k < world->object_index; ++k)
                 {
-                    float t_lowest = FLT_MAX;
-
-                    Ray3Hit hit_info;
-                    hit_info.hit = 0;
-                    Mat hit_mat;
-
-                    for (int k = 0; k < world->object_index; ++k)
+                    switch (world->objects_track[k])
                     {
-                        switch (world->objects_track[k])
-                        {
-                        case OBJECT_TRI:
-                            render_handle_tri(&ray, (TriObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                            break;
-                        case OBJECT_MESH:
-                            render_handle_mesh(&ray, (MeshObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                            break;
-                        case OBJECT_SPHERE:
-                            render_handle_sphere(&ray, (SphereObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                            break;
-                        }
-                    }
-
-                    if (hit_info.hit)
-                    {
-                        ray_bounce(&ray, &hit_info, &hit_mat);
-                    }
-                    else
-                    {
+                    case OBJECT_TRI:
+                        render_handle_tri(&ray, (TriObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        break;
+                    case OBJECT_MESH:
+                        render_handle_mesh(&ray, (MeshObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        break;
+                    case OBJECT_SPHERE:
+                        render_handle_sphere(&ray, (SphereObj *)world->objects[k], &hit_info, &hit_mat, &t_lowest);
                         break;
                     }
                 }
 
-                render_color = vec_add(render_color, ray.radiance);
+                if (hit_info.hit)
+                {
+                    ray_bounce(&ray, &hit_info, &hit_mat);
+                }
+                else
+                {
+                    break;
+                }
             }
 
-            render_color = vec_div_v(render_color, (float)renderer->samples);
-
-            if (render_color.x > 1.0f)
-                render_color.x = 1.0f;
-            if (render_color.y > 1.0f)
-                render_color.y = 1.0f;
-            if (render_color.z > 1.0f)
-                render_color.z = 1.0f;
-
-            renderer->pixels[index_2d_to_1d(x, y, renderer->width)] = (Color){render_color.x * 255.0f, render_color.y * 255.0f, render_color.z * 255.0f, 255.0f};
+            render_color = vec_add(render_color, ray.radiance);
         }
+
+        render_color = vec_div_v(render_color, (float)renderer->samples);
+
+        if (render_color.x > 1.0f)
+            render_color.x = 1.0f;
+        if (render_color.y > 1.0f)
+            render_color.y = 1.0f;
+        if (render_color.z > 1.0f)
+            render_color.z = 1.0f;
+
+        renderer->pixels[index_2d_to_1d(x, y, renderer->width)] = (Color){render_color.x * 255.0f, render_color.y * 255.0f, render_color.z * 255.0f, 255.0f};
+    }
+
+    free(render_thread_data);
+    return NULL;
+}
+
+void render(Renderer *renderer, const Cam *camera, const World *world)
+{
+    int px_inc = (renderer->width * renderer->height) / renderer->thread_count;
+
+    for (int i = 0; i < renderer->thread_count; ++i)
+    {
+        RenderThreadData *render_thread_data = (RenderThreadData *)malloc(sizeof(RenderThreadData));
+        render_thread_data->renderer = renderer;
+        render_thread_data->camera = camera;
+        render_thread_data->world = world;
+        render_thread_data->px_start = i * px_inc;
+        render_thread_data->px_end = i * px_inc + px_inc;
+
+        if (render_thread_data->px_end > renderer->width * renderer->height)
+        {
+            render_thread_data->px_end = renderer->width * renderer->height;
+        }
+
+        pthread_create(&renderer->threads[i], NULL, render_thread, (void *)render_thread_data);
+    }
+
+    for (int i = 0; i < renderer->thread_count; ++i)
+    {
+        pthread_join(renderer->threads[i], NULL);
     }
 }
