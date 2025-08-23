@@ -15,10 +15,13 @@ int main(void)
     random_init();
 
     Cam camera = camera_create();
-    Renderer renderer = renderer_create(120, 100, 1);
-    renderer.samples = 20;
-
     World world = world_create(100);
+    Renderer *renderer = renderer_create(&camera, &world, 150, 100, 16);
+    renderer->settings.max_bounces = 20;
+    renderer->settings.samples = 20;
+
+    Color *color = (Color *)malloc(sizeof(Color) * renderer->settings.width * renderer->settings.height);
+
     MeshObj mesh = mesh_create(1000);
 
     TriObj floor;
@@ -50,7 +53,7 @@ int main(void)
     TriObj tri = tri_create((Vec3){0, -4, 0}, (Vec3){20, -4, 0}, (Vec3){5, -4, -20});
     tri.mat.color = (Vec3){1, 1, 1};
     tri.mat.emission = (Vec3){1, 1, 1};
-    tri.mat.emission_strength = 1.0f;
+    tri.mat.emission_strength = 1.25f;
     tri.mat.roughness = 0.25f;
 
     mesh_add_tri(&mesh, floor);
@@ -60,10 +63,10 @@ int main(void)
     world_add_object(&world, &sphere, OBJECT_SPHERE);
     world_add_object(&world, &sphere2, OBJECT_SPHERE);
 
-    InitWindow(renderer.width * 6, renderer.height * 6, "raytracer");
+    InitWindow(renderer->settings.width * 6, renderer->settings.height * 6, "raytracer");
     SetWindowPosition(2500, 200);
 
-    RenderTexture2D target = LoadRenderTexture(renderer.width, renderer.height);
+    RenderTexture2D target = LoadRenderTexture(renderer->settings.width, renderer->settings.height);
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
@@ -99,40 +102,53 @@ int main(void)
         }
         if (IsKeyDown(KEY_Z))
         {
-            camera.fov += 0.1f;
+            camera.fov += 0.25f;
         }
         if (IsKeyDown(KEY_X))
         {
-            camera.fov -= 0.1f;
+            if (camera.fov > 0.25f)
+            {
+                camera.fov -= 0.25f;
+            }
         }
         if (IsKeyDown(KEY_UP))
         {
-            camera.rotation.x -= 0.1f;
+            camera.rotation.x -= 0.1f / camera.fov;
         }
         if (IsKeyDown(KEY_DOWN))
         {
-            camera.rotation.x += 0.1f;
+            camera.rotation.x += 0.1f / camera.fov;
         }
         if (IsKeyDown(KEY_LEFT))
         {
-            camera.rotation.y += 0.1f;
+            camera.rotation.y += 0.1f / camera.fov;
         }
         if (IsKeyDown(KEY_RIGHT))
         {
-            camera.rotation.y -= 0.1f;
+            camera.rotation.y -= 0.1f / camera.fov;
         }
 
-        render(&renderer, &camera, &world);
+        render(renderer);
 
         BeginTextureMode(target);
         ClearBackground(BLACK);
-        UpdateTexture(target.texture, renderer.pixels);
+
+        for (int y = 0; y < renderer->settings.height; ++y)
+        {
+            for (int x = 0; x < renderer->settings.width; ++x)
+            {
+                int index = index_2d_to_1d(x, y, renderer->settings.width);
+                color[index] = (Color){renderer->thread_station.pixels[index].x * 255.0f, renderer->thread_station.pixels[index].y * 255.0f, renderer->thread_station.pixels[index].z * 255.0f, 255.0f};
+            }
+        }
+
+        UpdateTexture(target.texture, color);
         EndTextureMode();
 
         BeginDrawing();
         ClearBackground(BLACK);
-        Rectangle src = {0, 0, (float)renderer.width, (float)renderer.height};
-        Rectangle dest = {0, 0, (float)renderer.width * 6, (float)renderer.height * 6};
+        Rectangle src = {0, 0, (float)renderer->settings.width, (float)renderer->settings.height};
+        Rectangle dest = {0, 0, (float)renderer->settings.width * 6, (float)renderer->settings.height * 6};
         DrawTexturePro(target.texture, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
         EndDrawing();
     }

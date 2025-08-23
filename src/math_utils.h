@@ -4,7 +4,9 @@
 #include "vec.h"
 
 void random_init();
+void random_thread_init(int thread_id);
 float random_float();
+float random_float_thread();
 
 Vec3 random_hemi(Vec3 normal);
 

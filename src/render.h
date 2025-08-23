@@ -1,49 +1,64 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#include <pthread.h>
+
 #include "camera.h"
 #include "world.h"
 #include "object.h"
 #include "ray.h"
 
-#include <raylib.h>
-#include <pthread.h>
+typedef struct RenderSettings
+{
+    Cam *camera;
+    World *world;
+
+    int width, height;
+
+    int max_bounces;
+    int samples;
+
+} RenderSettings;
+
+typedef struct RenderThreadStation
+{
+    unsigned int finished_count;
+    unsigned int thread_count;
+    pthread_mutex_t finished_mutex;
+    pthread_cond_t thread_done_cond;
+
+    Vec3 *pixels;
+} RenderThreadStation;
+
+typedef struct RenderChunk
+{
+    RenderSettings* settings;
+    unsigned int px_start;
+    unsigned int px_end;
+    unsigned int index;
+    int ready;
+
+    RenderThreadStation *thread_station;
+    pthread_mutex_t wake_mutex;
+    pthread_cond_t wake_cond;
+} RenderChunk;
 
 typedef struct Renderer
 {
-    const unsigned int width, height;
+    RenderSettings settings;
 
-    unsigned int max_bounces;
-    unsigned int samples;
-
-    const unsigned int thread_count;
     pthread_t *threads;
-    pthread_mutex_t work_mutex;
-    pthread_cond_t work_available;
-    pthread_cond_t work_complete;
+    RenderChunk **render_chunks;
 
-    RenderThreadData** work_queue;
-    int work_count;
-    int work_index;
-    int threads_working;
-
-    Color *pixels;
+    RenderThreadStation thread_station;
 } Renderer;
 
-typedef struct RenderThreadData
-{
-    Renderer *renderer;
-    Cam *camera;
-    World *world;
-    unsigned int px_start;
-    unsigned int px_end
-} RenderThreadData;
+Renderer *renderer_create(Cam *camera, World *world, unsigned int width, unsigned int height, unsigned int thread_count);
 
-Renderer renderer_create(unsigned int width, unsigned int height, unsigned int threads);
+void render_chunk(void *data);
+void *worker_thread(void *data);
 
-void *render_thread(void *data);
-
-void render(Renderer *renderer, const Cam *camera, const World *world);
+void render(Renderer *renderer);
 void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
