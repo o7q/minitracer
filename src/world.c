@@ -2,13 +2,13 @@
 
 #include <stdlib.h>
 
-World world_create(unsigned int max_objects)
+World *world_create(unsigned int max_objects)
 {
-    World world;
-    world.objects = (void **)malloc(sizeof(void *) * max_objects);
-    world.objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
-    world.object_index = 0;
-    world.max_objects = max_objects;
+    World *world = (World *)malloc(sizeof(World));
+    world->objects = (void **)malloc(sizeof(void *) * max_objects);
+    world->objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
+    world->object_index = 0;
+    world->max_objects = max_objects;
     return world;
 }
 

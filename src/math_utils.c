@@ -14,9 +14,7 @@ void random_init()
 
 void random_thread_init(int thread_id)
 {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    seed = ts.tv_nsec + thread_id;
+    seed = (unsigned int)time(NULL) + thread_id;
 }
 
 float random_float()

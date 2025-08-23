@@ -15,14 +15,14 @@ int main(void)
     random_init();
 
     Cam camera = camera_create();
-    World world = world_create(100);
-    Renderer *renderer = renderer_create(&camera, &world, 150, 100, 16);
-    renderer->settings.max_bounces = 20;
-    renderer->settings.samples = 20;
+    World *world = world_create(100);
+    Renderer *renderer = renderer_create(&camera, world, 150, 100, 16);
+    renderer->settings.max_bounces = 5;
+    renderer->settings.samples = 50;
 
     Color *color = (Color *)malloc(sizeof(Color) * renderer->settings.width * renderer->settings.height);
 
-    MeshObj mesh = mesh_create(1000);
+    MeshObj *mesh = mesh_create(1000);
 
     TriObj floor;
     floor.p1 = (Vec3){25, 1, -50};
@@ -34,34 +34,44 @@ int main(void)
     floor.mat.roughness = 1.0f;
     tri_init_normals(&floor);
 
-    SphereObj sphere;
-    sphere.position = (Vec3){-1, 0, 0};
-    sphere.radius = 1;
-    sphere.mat.color = (Vec3){1.0f, 0.5f, 1.0f};
-    sphere.mat.emission = (Vec3){1, 1, 0.9};
-    sphere.mat.emission_strength = 0.0f;
-    sphere.mat.roughness = 0.0f;
-
-    SphereObj sphere2;
-    sphere2.position = (Vec3){0, 0, -2.5};
-    sphere2.radius = 1;
-    sphere2.mat.color = (Vec3){0.5f, 1.0f, 0.9f};
-    sphere2.mat.emission = (Vec3){1, 1, 0.9};
-    sphere2.mat.emission_strength = 0.0f;
-    sphere2.mat.roughness = 0.0f;
-
-    TriObj tri = tri_create((Vec3){0, -4, 0}, (Vec3){20, -4, 0}, (Vec3){5, -4, -20});
+    TriObj tri = tri_create((Vec3){-20, -15, 20}, (Vec3){20, -15, 0}, (Vec3){5, -15, -20});
     tri.mat.color = (Vec3){1, 1, 1};
     tri.mat.emission = (Vec3){1, 1, 1};
     tri.mat.emission_strength = 1.25f;
-    tri.mat.roughness = 0.25f;
+    tri.mat.roughness = 1.0f;
 
-    mesh_add_tri(&mesh, floor);
-    mesh_add_tri(&mesh, tri);
+    for (int i = 0; i < 5; ++i)
+    {
+        SphereObj *sphere = malloc(sizeof(SphereObj));
+        sphere->position = (Vec3){random_float() * 3, random_float() * 2 - 3, random_float() * 3};
+        sphere->radius = 1.0f;
+        sphere->mat.color = (Vec3){1.0f, 0.5f, 1.0f};
+        sphere->mat.roughness = 0.0f;
 
-    world_add_object(&world, &mesh, OBJECT_MESH);
-    world_add_object(&world, &sphere, OBJECT_SPHERE);
-    world_add_object(&world, &sphere2, OBJECT_SPHERE);
+        world_add_object(world, sphere, OBJECT_SPHERE);
+    }
+
+    SphereObj sphere;
+    Mat material = material_create();
+    sphere.position = (Vec3){0, -2, 0};
+    sphere.radius = 1;
+    material.roughness = 0.0f;
+    sphere.mat = material;
+
+        SphereObj sphere2;
+    Mat material2 = material_create();
+    sphere2.position = (Vec3){0, -1, 0};
+    sphere2.radius = 0.5f;
+    material2.roughness = 1.0f;
+    material2.emission_strength = 9.0f;
+    sphere2.mat = material2;
+
+    mesh_add_tri(mesh, floor);
+    mesh_add_tri(mesh, tri);
+
+    world_add_object(world, &sphere, OBJECT_SPHERE);
+    world_add_object(world, &sphere2, OBJECT_SPHERE);
+    world_add_object(world, mesh, OBJECT_MESH);
 
     InitWindow(renderer->settings.width * 6, renderer->settings.height * 6, "raytracer");
     SetWindowPosition(2500, 200);
@@ -69,8 +79,22 @@ int main(void)
     RenderTexture2D target = LoadRenderTexture(renderer->settings.width, renderer->settings.height);
     SetTargetFPS(60);
 
+    float angle = 0.0f;
+    float angle2 = 2.0f;
+
     while (!WindowShouldClose())
     {
+        angle += 0.075f;
+        sphere.position.x = sinf(angle) * 5;
+        sphere.position.z = cosf(angle) * 5;
+        sphere.mat.emission.x = fabs(cosf(angle));
+        sphere.mat.emission.z = fabs(sinf(angle));
+
+                angle2 += 0.1f;
+        sphere2.position.x = sinf(angle2) * 5;
+        sphere2.position.z = cosf(angle2) * 5;
+        sphere2.mat.emission.x = fabs(cosf(angle2));
+        sphere2.mat.emission.z = fabs(sinf(angle2));
         if (IsKeyDown(KEY_SPACE))
         {
             camera.position.y -= 0.1f;

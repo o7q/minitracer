@@ -1,11 +1,9 @@
 #include "render.h"
 
-#include <math.h>
 #include <stdlib.h>
-#include <float.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <pthread.h>
+#include <math.h>
+#include <float.h>
 
 #include "ray.h"
 #include "camera.h"

@@ -17,6 +17,8 @@ typedef struct TriObj
     Vec3 p1_n, p2_n, p3_n;
     Vec3 normal;
 
+    Vec3 offset;
+
     Mat mat;
 } TriObj;
 
@@ -37,7 +39,7 @@ typedef struct SphereObj
     Mat mat;
 } SphereObj;
 
-MeshObj mesh_create(unsigned int max_tris);
+MeshObj *mesh_create(unsigned int max_tris);
 void mesh_add_tri(MeshObj *mesh, TriObj tri);
 void mesh_delete(MeshObj *mesh);
 

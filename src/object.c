@@ -2,12 +2,12 @@
 
 #include <stdlib.h>
 
-MeshObj mesh_create(unsigned int max_tris)
+MeshObj *mesh_create(unsigned int max_tris)
 {
-    MeshObj mesh;
-    mesh.tris = malloc(sizeof(TriObj) * max_tris);
-    mesh.tri_index = 0;
-    mesh.max_tris = max_tris;
+    MeshObj *mesh = (MeshObj *)malloc(sizeof(MeshObj));
+    mesh->tris = malloc(sizeof(TriObj) * max_tris);
+    mesh->tri_index = 0;
+    mesh->max_tris = max_tris;
     return mesh;
 }
 
