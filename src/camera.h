@@ -11,6 +11,7 @@ typedef struct Cam
     float fov;
 } Cam;
 
-Cam camera_create();
+Cam* camera_create();
+void camera_delete(Cam* cam);
 
 #endif

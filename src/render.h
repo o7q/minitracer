@@ -10,12 +10,12 @@
 
 typedef struct RenderSettings
 {
-    Cam *camera;
     World *world;
+    Cam *camera;
 
     int width, height;
 
-    int max_bounces;
+    int bounces;
     int samples;
 
 } RenderSettings;
@@ -32,14 +32,16 @@ typedef struct RenderThreadStation
 
 typedef struct RenderChunk
 {
-    RenderSettings* settings;
+    RenderSettings *settings;
     unsigned int px_start;
     unsigned int px_end;
     unsigned int index;
     int ready;
+    int terminate;
 
     RenderThreadStation *thread_station;
     pthread_mutex_t wake_mutex;
+    pthread_mutex_t terminate_mutex;
     pthread_cond_t wake_cond;
 } RenderChunk;
 
@@ -53,14 +55,19 @@ typedef struct Renderer
     RenderThreadStation thread_station;
 } Renderer;
 
-Renderer *renderer_create(Cam *camera, World *world, unsigned int width, unsigned int height, unsigned int thread_count);
+Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count);
+void renderer_set_samples(Renderer* renderer, unsigned int samples);
+void renderer_set_bounces(Renderer* renderer, unsigned int bounces);
+void renderer_set_world(Renderer *renderer, World *world);
+void renderer_set_camera(Renderer *renderer, Cam *camera);
+void renderer_delete(Renderer *renderer);
 
-void render_chunk(void *data);
 void *worker_thread(void *data);
+void render_chunk(void *data);
 
-void render(Renderer *renderer);
 void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
 void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
+void render(Renderer *renderer);
 
 #endif

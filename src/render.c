@@ -1,5 +1,6 @@
 #include "render.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
@@ -9,10 +10,10 @@
 #include "camera.h"
 #include "math_utils.h"
 
-Renderer *renderer_create(Cam *camera, World *world, unsigned int width, unsigned int height, unsigned int thread_count)
+Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
     Renderer *renderer = malloc(sizeof(Renderer));
-    *renderer = (Renderer){(RenderSettings){camera, world, width, height, 5, 20}};
+    *renderer = (Renderer){(RenderSettings){NULL, NULL, width, height, 5, 20}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
     renderer->render_chunks = (RenderChunk **)malloc(sizeof(RenderChunk *) * thread_count);
@@ -41,11 +42,12 @@ Renderer *renderer_create(Cam *camera, World *world, unsigned int width, unsigne
         }
 
         RenderChunk *rc = (RenderChunk *)malloc(sizeof(RenderChunk));
-        *rc = (RenderChunk){&renderer->settings, px_start, px_end, i, 0};
+        *rc = (RenderChunk){&renderer->settings, px_start, px_end, i, 0, 0};
 
         rc->thread_station = &renderer->thread_station;
 
         pthread_mutex_init(&rc->wake_mutex, NULL);
+        pthread_mutex_init(&rc->terminate_mutex, NULL);
         pthread_cond_init(&rc->wake_cond, NULL);
 
         renderer->render_chunks[i] = rc;
@@ -55,40 +57,77 @@ Renderer *renderer_create(Cam *camera, World *world, unsigned int width, unsigne
     return renderer;
 }
 
-void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+void renderer_set_world(Renderer *renderer, World *world)
 {
-    Ray3Hit ray_hit = ray_hit_tri(ray, tri);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
-    {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
-
-        *hit_mat = tri->mat;
-    }
+    renderer->settings.world = world;
 }
 
-void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+void renderer_set_camera(Renderer *renderer, Cam *camera)
 {
-    for (int i = 0; i < mesh->tri_index; ++i)
-    {
-        render_handle_tri(ray, &mesh->tris[i], hit_info, hit_mat, t_lowest);
-    }
+    renderer->settings.camera = camera;
 }
 
-void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+void renderer_set_samples(Renderer *renderer, unsigned int samples)
 {
-    Ray3Hit ray_hit = ray_hit_sphere(ray, sphere);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
-    {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
+    renderer->settings.samples = samples;
+}
+void renderer_set_bounces(Renderer *renderer, unsigned int bounces)
+{
+    renderer->settings.bounces = bounces;
+}
 
-        *hit_mat = sphere->mat;
+void renderer_delete(Renderer *renderer)
+{
+    if (!renderer)
+    {
+        return;
     }
+
+    for (int i = 0; i < renderer->thread_station.thread_count; ++i)
+    {
+        RenderChunk *rc = renderer->render_chunks[i];
+
+        if (!rc)
+        {
+            continue;
+        }
+
+        pthread_mutex_lock(&rc->terminate_mutex);
+        rc->terminate = 1;
+        pthread_cond_signal(&rc->wake_cond);
+        pthread_mutex_unlock(&rc->terminate_mutex);
+
+        printf("Freeing: %d\n", i);
+        fflush(stdout);
+
+        pthread_join(renderer->threads[i], NULL);
+
+        pthread_mutex_destroy(&rc->wake_mutex);
+        pthread_mutex_destroy(&rc->terminate_mutex);
+        pthread_cond_destroy(&rc->wake_cond);
+
+        free(rc);
+    }
+
+    if (renderer->render_chunks)
+    {
+        free(renderer->render_chunks);
+    }
+
+    pthread_mutex_destroy(&renderer->thread_station.finished_mutex);
+    pthread_cond_destroy(&renderer->thread_station.thread_done_cond);
+
+    if (renderer->threads)
+    {
+        free(renderer->threads);
+    }
+
+    if (renderer->thread_station.pixels)
+    {
+        free(renderer->thread_station.pixels);
+    }
+
+    free(renderer);
 }
 
 void *worker_thread(void *data)
@@ -97,7 +136,7 @@ void *worker_thread(void *data)
 
     random_thread_init(rc->index);
 
-    while (1)
+    while (!rc->terminate)
     {
         pthread_mutex_lock(&rc->wake_mutex);
         if (!rc->ready)
@@ -123,13 +162,52 @@ void *worker_thread(void *data)
     return NULL;
 }
 
+void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+{
+    Ray3Hit ray_hit = ray_hit_tri(ray, tri);
+    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    {
+        hit_info->hit = 1;
+        hit_info->pos = ray_hit.pos;
+        hit_info->normal = ray_hit.normal;
+        *t_lowest = ray_hit.t;
+
+        *hit_mat = *tri->mat;
+    }
+}
+
+void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+{
+    for (int i = 0; i < mesh->tri_index; ++i)
+    {
+        render_handle_tri(ray, mesh->tris[i], hit_info, hit_mat, t_lowest);
+    }
+}
+
+void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+{
+    Ray3Hit ray_hit = ray_hit_sphere(ray, sphere);
+    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    {
+        hit_info->hit = 1;
+        hit_info->pos = ray_hit.pos;
+        hit_info->normal = ray_hit.normal;
+        *t_lowest = ray_hit.t;
+
+        *hit_mat = *sphere->mat;
+    }
+}
+
 void render_chunk(void *data)
 {
     RenderChunk *rc = (RenderChunk *)data;
 
     RenderSettings *rs = rc->settings;
-    unsigned int px_start = rc->px_start;
-    unsigned int px_end = rc->px_end;
+
+    if (!rs->camera || !rs->world)
+    {
+        return;
+    }
 
     float viewport_height = 1.0f;
     float viewport_width = viewport_height * ((float)rs->width / rs->height);
@@ -140,7 +218,7 @@ void render_chunk(void *data)
     Vec3 viewport_top_left = vec_sub(rs->camera->position, (Vec3){viewport_width / 2.0f, viewport_height / 2.0f, rs->camera->fov});
     Vec3 pixel00_pos = vec_add(viewport_top_left, (Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
 
-    for (int i = px_start; i < px_end; ++i)
+    for (int i = rc->px_start; i < rc->px_end; ++i)
     {
         int x = i % rs->width;
         int y = i / rs->width;
@@ -169,7 +247,7 @@ void render_chunk(void *data)
             ray.color = (Vec3){1, 1, 1};
             ray.radiance = (Vec3){0, 0, 0};
 
-            for (int j = 0; j < rs->max_bounces; ++j)
+            for (int j = 0; j < rs->bounces; ++j)
             {
                 float t_lowest = FLT_MAX;
 

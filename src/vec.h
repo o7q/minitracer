@@ -24,4 +24,6 @@ float vec_length(Vec3 a);
 Vec3 vec_normalize(Vec3 a);
 Vec3 vec_lerp(Vec3 a, Vec3 b, float t);
 
+void vec_rotate(Vec3* point, Vec3 rotation);
+
 #endif

@@ -46,3 +46,22 @@ Vec3 vec_lerp(Vec3 a, Vec3 b, float t)
 {
     return (Vec3){lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t)};
 }
+
+void vec_rotate(Vec3 *point, Vec3 rotation)
+{
+    // x
+    float p1_rotated_y = point->y * cosf(rotation.x) - point->z * sinf(rotation.x);
+    float p1_rotated_z = point->y * sinf(rotation.x) + point->z * cosf(rotation.x);
+
+    float p1_rotated_x = point->x * cosf(rotation.y) + p1_rotated_z * sinf(rotation.y);
+    // y
+    float p1_rotated_z_2 = p1_rotated_z * cosf(rotation.y) - point->x * sinf(rotation.y);
+
+    float p1_rotated_x_2 = p1_rotated_x * cosf(rotation.z) - p1_rotated_y * sinf(rotation.z);
+    float p1_rotated_y_2 = p1_rotated_x * sinf(rotation.z) + p1_rotated_y * cosf(rotation.z);
+    // z
+
+    point->x = p1_rotated_x_2;
+    point->y = p1_rotated_y_2;
+    point->z = p1_rotated_z_2;
+}

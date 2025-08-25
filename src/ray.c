@@ -18,20 +18,44 @@ Vec3 ray_at(const Ray3 *ray, float t)
 Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
 {
     Ray3Hit hit;
+    hit.hit = 0;
 
     Vec3 edge1 = vec_sub(tri->p2, tri->p1);
     Vec3 edge2 = vec_sub(tri->p3, tri->p1);
     Vec3 normal = vec_cross(edge1, edge2);
 
     float det = -vec_dot(ray->direction, normal);
+
+    if (det < 1e-6f)
+    {
+        return hit;
+    }
+
     float invdet = 1.0f / det;
 
     Vec3 ao = vec_sub(ray->origin, tri->p1);
     Vec3 dao = vec_cross(ao, ray->direction);
 
     float dst = vec_dot(ao, normal) * invdet;
+
+    if (dst < 0.0f)
+    {
+        return hit;
+    }
+
     float u = vec_dot(edge2, dao) * invdet;
+
+    if (u < 0.0f || u > 1.0f)
+    {
+        return hit;
+    }
+
     float v = -vec_dot(edge1, dao) * invdet;
+
+    if (v < 0.0f || u + v > 1.0f) {
+        return (Ray3Hit){.hit = 0};
+    }
+
     float w = 1.0f - u - v;
 
     hit.hit = det >= 1e-6 && dst >= 0.0f && u >= 0.0f && v >= 0.0f && w >= 0.0f ? 1 : 0;
@@ -74,7 +98,7 @@ void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
     // apply color
     ray->color = vec_mult(ray->color, mat->color);
 
-    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength); 
+    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength);
     ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
 
     // reflective bounce
@@ -84,5 +108,5 @@ void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
     ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
 
     // scatter from roughness
-    ray->direction = vec_lerp(ray->direction, random_hemi(hit->normal), mat->roughness);
+    ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
 }

@@ -35,9 +35,22 @@ void world_delete(World *world)
     {
         for (unsigned int i = 0; i < world->object_index; ++i)
         {
-            if (world->objects[i])
+            if (!world->objects[i])
             {
-                free(world->objects[i]);
+                continue;
+            }
+
+            switch (world->objects_track[i])
+            {
+            case OBJECT_TRI:
+                tri_delete(world->objects[i]);
+                break;
+            case OBJECT_MESH:
+                mesh_delete(world->objects[i]);
+                break;
+            case OBJECT_SPHERE:
+                sphere_delete(world->objects[i]);
+                break;
             }
         }
         free(world->objects);
