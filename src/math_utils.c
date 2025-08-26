@@ -20,7 +20,7 @@ void random_thread_init(int thread_id)
 
 float random_float()
 {
-    return 2 * (rand() / (float)RAND_MAX) - 1;
+    return 2.0f * (rand() / (float)RAND_MAX) - 1.0f;
 }
 
 float random_float_thread()

@@ -58,6 +58,51 @@ MeshObj *mesh_create_plane(Mat *material)
     return plane;
 }
 
+MeshObj *mesh_create_cube(Mat *material)
+{
+    MeshObj *cube = mesh_create(12);
+
+    MeshObj **planes = (MeshObj **)malloc(sizeof(MeshObj *) * 6);
+
+    for (int i = 0; i < 6; ++i)
+    {
+        planes[i] = mesh_create_plane(material);
+    }
+
+    // top
+    mesh_move(planes[0], (Vec3){0, -0.5, 0});
+
+    // bottom
+    mesh_move(planes[1], (Vec3){0, 0.5, 0});
+    mesh_rotate(planes[1], (Vec3){3.14159, 0, 0});
+
+    // front
+    mesh_move(planes[2], (Vec3){0, 0, -0.5});
+    mesh_rotate(planes[2], (Vec3){3.14159 / 2.0f, 0, 0});
+
+    // back
+    mesh_move(planes[3], (Vec3){0, 0, 0.5});
+    mesh_rotate(planes[3], (Vec3){-3.14159 / 2.0f, 0, 0});
+
+    // left
+    mesh_move(planes[4], (Vec3){-0.5, 0, 0});
+    mesh_rotate(planes[4], (Vec3){0, 0, -3.14159 / 2.0f});
+
+    // right
+    mesh_move(planes[5], (Vec3){0.5, 0, 0});
+    mesh_rotate(planes[5], (Vec3){0, 0, 3.14159 / 2.0f});
+
+    for (int i = 0; i < 6; ++i)
+    {
+        mesh_add_tri(cube, planes[i]->tris[0]);
+        mesh_add_tri(cube, planes[i]->tris[1]);
+    }
+
+    free(planes);
+
+    return cube;
+}
+
 // moves a tri into the mesh, deleting the mesh will delete all children tris
 void mesh_add_tri(MeshObj *mesh, TriObj *tri)
 {
@@ -104,6 +149,9 @@ void mesh_rotate(MeshObj *mesh, Vec3 rotation)
         vec_rotate(&tri->p1, rotation);
         vec_rotate(&tri->p2, rotation);
         vec_rotate(&tri->p3, rotation);
+        vec_rotate(&tri->p1_n, rotation);
+        vec_rotate(&tri->p2_n, rotation);
+        vec_rotate(&tri->p3_n, rotation);
 
         tri->p1 = vec_add(tri->p1, mesh->offset_history);
         tri->p2 = vec_add(tri->p2, mesh->offset_history);

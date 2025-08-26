@@ -136,12 +136,17 @@ void *worker_thread(void *data)
 
     random_thread_init(rc->index);
 
-    while (!rc->terminate)
+    while (1)
     {
         pthread_mutex_lock(&rc->wake_mutex);
         if (!rc->ready)
         {
             pthread_cond_wait(&rc->wake_cond, &rc->wake_mutex);
+
+            if (rc->terminate)
+            {
+                break;
+            }
         }
 
         rc->ready = 0;
@@ -277,6 +282,11 @@ void render_chunk(void *data)
                 }
                 else
                 {
+                    Vec3 unit_direction = vec_mult_v(vec_normalize(ray.direction), -1.0f);
+                    float a = 0.5f * (unit_direction.y + 1.0f);
+                    Vec3 color = vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
+                    // color = vec_div_v(color, 1.5f);
+                    ray.radiance = vec_add(ray.radiance, vec_mult(ray.color, color));
                     break;
                 }
             }
@@ -285,6 +295,12 @@ void render_chunk(void *data)
         }
 
         render_color = vec_div_v(render_color, (float)rs->samples);
+
+        float gamma = 0.9f;
+
+        render_color.x = powf(render_color.x, 1.0f / gamma);
+        render_color.y = powf(render_color.y, 1.0f / gamma);
+        render_color.z = powf(render_color.z, 1.0f / gamma);
 
         // clamp color
         if (render_color.x > 1.0f)
@@ -301,6 +317,12 @@ void render_chunk(void *data)
         }
 
         rc->thread_station->pixels[index_2d_to_1d(x, y, rc->settings->width)] = render_color;
+
+        if (i % 100 == 0 && rc->index == 3)
+        {
+            printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
+            fflush(stdout);
+        }
     }
 }
 

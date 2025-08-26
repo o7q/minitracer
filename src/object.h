@@ -44,6 +44,7 @@ void tri_delete(TriObj *tri);
 
 MeshObj *mesh_create(unsigned int max_tris);
 MeshObj *mesh_create_plane(Mat *material);
+MeshObj *mesh_create_cube(Mat *material);
 void mesh_add_tri(MeshObj *mesh, TriObj *tri);
 void mesh_init_normals(MeshObj *mesh);
 void mesh_move(MeshObj *mesh, Vec3 position);
