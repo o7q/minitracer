@@ -89,7 +89,7 @@ int main(void)
     world_add_object(world, sphere, OBJECT_SPHERE);
 
     Color *color = (Color *)malloc(sizeof(Color) * renderer->settings.width * renderer->settings.height);
-    InitWindow(renderer->settings.width * windowScale, renderer->settings.height * windowScale, "raytracer");
+    InitWindow(renderer->settings.width * windowScale, renderer->settings.height * windowScale, "minitracer");
     SetWindowPosition(2500, 200);
     RenderTexture2D target = LoadRenderTexture(renderer->settings.width, renderer->settings.height);
     SetTargetFPS(60);

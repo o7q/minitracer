@@ -1,1 +1,1 @@
-rm -rf ./build ./raytracer
+rm -rf ./build ./minitracer
