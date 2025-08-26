@@ -1,14 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <math.h>
+#define MINITRACER_IMPLEMENTATION
+#include "minitracer.h"
 #include <raylib.h>
-
-#include "camera.h"
-#include "render.h"
-#include "world.h"
-#include "object.h"
-#include "math_utils.h"
 
 int main(void)
 {
@@ -85,7 +77,7 @@ int main(void)
     mesh_rotate(cube2, (Vec3){0, 0.5f, 0});
     world_add_object(world, cube2, OBJECT_MESH);
 
-    SphereObj* sphere = sphere_create((Vec3){-0.6f, -0.5f, 0.62f}, 0.5f, glossy_mat);
+    SphereObj *sphere = sphere_create((Vec3){-0.6f, -0.5f, 0.62f}, 0.5f, glossy_mat);
     world_add_object(world, sphere, OBJECT_SPHERE);
 
     Color *color = (Color *)malloc(sizeof(Color) * renderer->settings.width * renderer->settings.height);
