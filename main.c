@@ -4,8 +4,6 @@
 
 int main(void)
 {
-    random_init();
-
     int windowScale = 6;
 
     World *world = world_create(100);
@@ -18,7 +16,7 @@ int main(void)
     renderer_set_world(renderer, world);
     renderer_set_camera(renderer, camera);
     renderer_set_samples(renderer, 20);
-    renderer_set_bounces(renderer, 4);
+    renderer_set_bounces(renderer, 6);
 
     Mat *matte_mat = material_create();
     Mat *matte_mat_red = material_create();
@@ -26,7 +24,7 @@ int main(void)
     Mat *matte_mat_green = material_create();
     matte_mat_green->color = (Vec3){0, 1, 0};
     Mat *emission_mat = material_create();
-    emission_mat->emission = (Vec3){255 / 255.0f, 249 / 255.0f, 194 / 255.0f};
+    emission_mat->emission = (Vec3){255 / 255.0f, 247 / 255.0f, 153 / 255.0f};
     emission_mat->emission_strength = 4.0f;
     Mat *glossy_mat = material_create();
     glossy_mat->roughness = 0.1f;

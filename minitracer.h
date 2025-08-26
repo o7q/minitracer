@@ -39,9 +39,9 @@ void vec_rotate(Vec3 *point, Vec3 rotation);
 //////////////////////////////////////
 // ========== MATH_UTILS ========== //
 //////////////////////////////////////
-void random_init();
+static const double PI = 3.14159265358979323846;
+
 void random_thread_init(int thread_id);
-float random_float();
 float random_float_thread();
 
 Vec3 random_hemi_normal_distribution(Vec3 normal);
@@ -313,19 +313,9 @@ void vec_rotate(Vec3 *point, Vec3 rotation)
 //////////////////////////////////////
 static __thread unsigned int seed = 0;
 
-void random_init()
-{
-    srand((unsigned int)time(NULL));
-}
-
 void random_thread_init(int thread_id)
 {
     seed = (unsigned int)time(NULL) + thread_id;
-}
-
-float random_float()
-{
-    return 2.0f * (rand() / (float)RAND_MAX) - 1.0f;
 }
 
 float random_float_thread()
@@ -343,7 +333,7 @@ Vec3 random_hemi_normal_distribution(Vec3 normal)
 
     float cos_theta = u1;
     float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
-    float phi = 2.0f * 3.14159265f * u2;
+    float phi = 2.0f * PI * u2;
 
     Vec3 local_dir = {
         sin_theta * cosf(phi),
@@ -463,23 +453,23 @@ MeshObj *mesh_create_cube(Mat *material)
 
     // bottom
     mesh_move(planes[1], (Vec3){0, 0.5, 0});
-    mesh_rotate(planes[1], (Vec3){3.14159, 0, 0});
+    mesh_rotate(planes[1], (Vec3){PI, 0, 0});
 
     // front
     mesh_move(planes[2], (Vec3){0, 0, -0.5});
-    mesh_rotate(planes[2], (Vec3){3.14159 / 2.0f, 0, 0});
+    mesh_rotate(planes[2], (Vec3){PI / 2.0f, 0, 0});
 
     // back
     mesh_move(planes[3], (Vec3){0, 0, 0.5});
-    mesh_rotate(planes[3], (Vec3){-3.14159 / 2.0f, 0, 0});
+    mesh_rotate(planes[3], (Vec3){-PI / 2.0f, 0, 0});
 
     // left
     mesh_move(planes[4], (Vec3){-0.5, 0, 0});
-    mesh_rotate(planes[4], (Vec3){0, 0, -3.14159 / 2.0f});
+    mesh_rotate(planes[4], (Vec3){0, 0, -PI / 2.0f});
 
     // right
     mesh_move(planes[5], (Vec3){0.5, 0, 0});
-    mesh_rotate(planes[5], (Vec3){0, 0, 3.14159 / 2.0f});
+    mesh_rotate(planes[5], (Vec3){0, 0, PI / 2.0f});
 
     for (int i = 0; i < 6; ++i)
     {
@@ -599,10 +589,9 @@ void sphere_delete(SphereObj *sphere)
     }
 }
 
-///////////////////////////////
+/////////////////////////////////
 // ========== WORLD ========== //
-///////////////////////////////
-
+/////////////////////////////////
 World *world_create(unsigned int max_objects)
 {
     World *world = (World *)malloc(sizeof(World));
@@ -775,9 +764,9 @@ void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
     ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
 }
 
-//////////////////////////////////
+///////////////////////////////
 // ========== CAM ========== //
-//////////////////////////////////
+///////////////////////////////
 Cam *camera_create()
 {
     Cam *cam = (Cam *)malloc(sizeof(Cam));
@@ -1106,10 +1095,11 @@ void render_chunk(void *data)
 
         rc->thread_station->pixels[index_2d_to_1d(x, y, rc->settings->width)] = render_color;
 
+        // display render progress
         if (i % 100 == 0 && rc->index == 3)
         {
-            // printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
-            // fflush(stdout);
+            printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
+            fflush(stdout);
         }
     }
 }
@@ -1137,4 +1127,4 @@ void render(Renderer *renderer)
     pthread_mutex_unlock(&renderer->thread_station.finished_mutex);
 }
 
-#endif
+#endif // MINITRACER_IMPLEMENTATION
