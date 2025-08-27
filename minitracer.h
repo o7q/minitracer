@@ -1,12 +1,36 @@
+////////////////////////////////////////////////////////////////////////////////////
+// MIT License                                                                    //
+//                                                                                //
+// Copyright (c) 2025 James                                                       //
+//                                                                                //
+// Permission is hereby granted, free of charge, to any person obtaining a copy   //
+// of this software and associated documentation files (the "Software"), to deal  //
+// in the Software without restriction, including without limitation the rights   //
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell      //
+// copies of the Software, and to permit persons to whom the Software is          //
+// furnished to do so, subject to the following conditions:                       //
+//                                                                                //
+// The above copyright notice and this permission notice shall be included in all //
+// copies or substantial portions of the Software.                                //
+//                                                                                //
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR     //
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,       //
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE    //
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER         //
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,  //
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE  //
+// SOFTWARE.                                                                      //
+////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef MINITRACER_H
 #define MINITRACER_H
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <float.h>
 #include <limits.h>
 #include <pthread.h>
-#include <float.h>
 
 ///////////////////////////////
 // ========== VEC ========== //
@@ -36,6 +60,25 @@ Vec3 vec_lerp(Vec3 a, Vec3 b, float t);
 
 void vec_rotate(Vec3 *point, Vec3 rotation);
 
+///////////////////////////////
+// ========== RAY ========== //
+///////////////////////////////
+typedef struct Ray3
+{
+    Vec3 origin;
+    Vec3 direction;
+    Vec3 radiance;
+    Vec3 color;
+} Ray3;
+
+typedef struct Ray3Hit
+{
+    Vec3 pos;
+    Vec3 normal;
+    int hit;
+    float t;
+} Ray3Hit;
+
 //////////////////////////////////////
 // ========== MATH_UTILS ========== //
 //////////////////////////////////////
@@ -44,8 +87,8 @@ static const double PI = 3.14159265358979323846;
 void random_thread_init(int thread_id);
 float random_float_thread();
 
-Vec3 random_hemi_normal_distribution(Vec3 normal);
 Vec3 random_hemi(Vec3 normal);
+Vec3 random_hemi_normal_distribution(Vec3 normal);
 
 float lerp(float a, float b, float t);
 unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width);
@@ -117,25 +160,6 @@ void mesh_delete(MeshObj *mesh);
 
 SphereObj *sphere_create(Vec3 position, float radius, Mat *mat);
 void sphere_delete(SphereObj *sphere);
-
-///////////////////////////////
-// ========== RAY ========== //
-///////////////////////////////
-typedef struct Ray3
-{
-    Vec3 origin;
-    Vec3 direction;
-    Vec3 radiance;
-    Vec3 color;
-} Ray3;
-
-typedef struct Ray3Hit
-{
-    Vec3 pos;
-    Vec3 normal;
-    int hit;
-    float t;
-} Ray3Hit;
 
 Vec3 ray_at(const Ray3 *ray, float t);
 Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri);
@@ -308,6 +332,116 @@ void vec_rotate(Vec3 *point, Vec3 rotation)
     point->z = p1_rotated_z_2;
 }
 
+///////////////////////////////
+// ========== RAY ========== //
+///////////////////////////////
+Vec3 ray_at(const Ray3 *ray, float t)
+{
+    return (Vec3){
+        ray->origin.x + t * ray->direction.x,
+        ray->origin.y + t * ray->direction.y,
+        ray->origin.z + t * ray->direction.z};
+}
+
+// Möller–Trumbore intersection
+// thanks Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
+Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
+{
+    Ray3Hit hit;
+    hit.hit = 0;
+
+    Vec3 edge1 = vec_sub(tri->p2, tri->p1);
+    Vec3 edge2 = vec_sub(tri->p3, tri->p1);
+    Vec3 normal = vec_cross(edge1, edge2);
+
+    float det = -vec_dot(ray->direction, normal);
+
+    if (det < 1e-6f)
+    {
+        return hit;
+    }
+
+    float invdet = 1.0f / det;
+
+    Vec3 ao = vec_sub(ray->origin, tri->p1);
+    Vec3 dao = vec_cross(ao, ray->direction);
+
+    float dst = vec_dot(ao, normal) * invdet;
+
+    if (dst < 0.0f)
+    {
+        return hit;
+    }
+
+    float u = vec_dot(edge2, dao) * invdet;
+
+    if (u < 0.0f || u > 1.0f)
+    {
+        return hit;
+    }
+
+    float v = -vec_dot(edge1, dao) * invdet;
+
+    if (v < 0.0f || u + v > 1.0f)
+    {
+        return (Ray3Hit){.hit = 0};
+    }
+
+    float w = 1.0f - u - v;
+
+    hit.hit = det >= 1e-6 && dst >= 0.0f && u >= 0.0f && v >= 0.0f && w >= 0.0f ? 1 : 0;
+    hit.pos = ray_at(ray, dst);
+    hit.normal = vec_normalize((Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
+                                      tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
+                                      tri->p1_n.z * w + tri->p2_n.z * u + tri->p3_n.z * v});
+    hit.t = dst;
+
+    return hit;
+}
+
+Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere)
+{
+    Ray3Hit hit;
+    hit.hit = 0;
+
+    Vec3 oc = vec_sub(sphere->position, ray->origin);
+    float a = vec_length_squared(ray->direction);
+    float h = vec_dot(ray->direction, oc);
+    float c = vec_length_squared(oc) - sphere->radius * sphere->radius;
+    float discriminant = h * h - a * c;
+    if (discriminant >= 0)
+    {
+        float t = (h - sqrtf(discriminant)) / a;
+        if (t >= 0.0f)
+        {
+            hit.hit = 1;
+            hit.t = t;
+            hit.pos = ray_at(ray, hit.t);
+            hit.normal = vec_normalize(vec_sub(hit.pos, sphere->position));
+        }
+    }
+
+    return hit;
+}
+
+void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
+{
+    // apply color
+    ray->color = vec_mult(ray->color, mat->color);
+
+    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength);
+    ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
+
+    // reflective bounce
+    Vec3 i_n = vec_normalize(ray->direction);
+    float d = vec_dot(i_n, hit->normal);
+    ray->origin = hit->pos;
+    ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
+
+    // scatter from roughness
+    ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
+}
+
 //////////////////////////////////////
 // ========== MATH_UTILS ========== //
 //////////////////////////////////////
@@ -326,6 +460,12 @@ float random_float_thread()
     return 2.0f * (seed / (float)UINT_MAX) - 1.0f;
 }
 
+Vec3 random_hemi(Vec3 normal)
+{
+    Vec3 dir = (Vec3){random_float_thread(), random_float_thread(), random_float_thread()};
+    return vec_mult_v(dir, (vec_dot(normal, dir) < 0 ? -1 : 1));
+}
+
 Vec3 random_hemi_normal_distribution(Vec3 normal)
 {
     float u1 = (random_float_thread() + 1.0f) * 0.5f;
@@ -341,12 +481,6 @@ Vec3 random_hemi_normal_distribution(Vec3 normal)
         cos_theta};
 
     return vec_mult_v(local_dir, (vec_dot(normal, local_dir) < 0 ? -1 : 1));
-}
-
-Vec3 random_hemi(Vec3 normal)
-{
-    Vec3 dir = (Vec3){random_float_thread(), random_float_thread(), random_float_thread()};
-    return vec_mult_v(dir, (vec_dot(normal, dir) < 0 ? -1 : 1));
 }
 
 float lerp(float a, float b, float t)
@@ -652,116 +786,6 @@ void world_delete(World *world)
     }
 
     free(world);
-}
-
-///////////////////////////////
-// ========== RAY ========== //
-///////////////////////////////
-Vec3 ray_at(const Ray3 *ray, float t)
-{
-    return (Vec3){
-        ray->origin.x + t * ray->direction.x,
-        ray->origin.y + t * ray->direction.y,
-        ray->origin.z + t * ray->direction.z};
-}
-
-// Möller–Trumbore intersection
-// thanks Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
-Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
-{
-    Ray3Hit hit;
-    hit.hit = 0;
-
-    Vec3 edge1 = vec_sub(tri->p2, tri->p1);
-    Vec3 edge2 = vec_sub(tri->p3, tri->p1);
-    Vec3 normal = vec_cross(edge1, edge2);
-
-    float det = -vec_dot(ray->direction, normal);
-
-    if (det < 1e-6f)
-    {
-        return hit;
-    }
-
-    float invdet = 1.0f / det;
-
-    Vec3 ao = vec_sub(ray->origin, tri->p1);
-    Vec3 dao = vec_cross(ao, ray->direction);
-
-    float dst = vec_dot(ao, normal) * invdet;
-
-    if (dst < 0.0f)
-    {
-        return hit;
-    }
-
-    float u = vec_dot(edge2, dao) * invdet;
-
-    if (u < 0.0f || u > 1.0f)
-    {
-        return hit;
-    }
-
-    float v = -vec_dot(edge1, dao) * invdet;
-
-    if (v < 0.0f || u + v > 1.0f)
-    {
-        return (Ray3Hit){.hit = 0};
-    }
-
-    float w = 1.0f - u - v;
-
-    hit.hit = det >= 1e-6 && dst >= 0.0f && u >= 0.0f && v >= 0.0f && w >= 0.0f ? 1 : 0;
-    hit.pos = ray_at(ray, dst);
-    hit.normal = vec_normalize((Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
-                                      tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
-                                      tri->p1_n.z * w + tri->p2_n.z * u + tri->p3_n.z * v});
-    hit.t = dst;
-
-    return hit;
-}
-
-Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere)
-{
-    Ray3Hit hit;
-    hit.hit = 0;
-
-    Vec3 oc = vec_sub(sphere->position, ray->origin);
-    float a = vec_length_squared(ray->direction);
-    float h = vec_dot(ray->direction, oc);
-    float c = vec_length_squared(oc) - sphere->radius * sphere->radius;
-    float discriminant = h * h - a * c;
-    if (discriminant >= 0)
-    {
-        float t = (h - sqrtf(discriminant)) / a;
-        if (t >= 0.0f)
-        {
-            hit.hit = 1;
-            hit.t = t;
-            hit.pos = ray_at(ray, hit.t);
-            hit.normal = vec_normalize(vec_sub(hit.pos, sphere->position));
-        }
-    }
-
-    return hit;
-}
-
-void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
-{
-    // apply color
-    ray->color = vec_mult(ray->color, mat->color);
-
-    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength);
-    ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
-
-    // reflective bounce
-    Vec3 i_n = vec_normalize(ray->direction);
-    float d = vec_dot(i_n, hit->normal);
-    ray->origin = hit->pos;
-    ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
-
-    // scatter from roughness
-    ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
 }
 
 ///////////////////////////////
