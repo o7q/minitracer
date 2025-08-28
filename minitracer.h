@@ -1,3 +1,5 @@
+// minitracer
+
 ////////////////////////////////////////////////////////////////////////////////////
 // MIT License                                                                    //
 //                                                                                //
@@ -58,7 +60,38 @@ float vec_length(Vec3 a);
 Vec3 vec_normalize(Vec3 a);
 Vec3 vec_lerp(Vec3 a, Vec3 b, float t);
 
+void vec_translate(Vec3 *point, Vec3 translation);
 void vec_rotate(Vec3 *point, Vec3 rotation);
+
+//////////////////////////////////
+// ========== MATRIX ========== //
+//////////////////////////////////
+typedef struct Mat4x4
+{
+    float m[4][4];
+} Mat4x4;
+
+Mat4x4 mat_4x4_mult(Mat4x4 a, Mat4x4 b);
+Vec3 mat_4x4_mult_vec3(Mat4x4 m, Vec3 v);
+
+Mat4x4 mat_create_translation(Vec3 translation);
+Mat4x4 mat_create_rotation(Vec3 rotation);
+Mat4x4 mat_create_scale(Vec3 scale);
+
+//////////////////////////////////////
+// ========== MATH_UTILS ========== //
+//////////////////////////////////////
+static const double PI = 3.14159265358979323846;
+
+void random_thread_init(int thread_id);
+float random_float_thread();
+
+Vec3 random_hemi(Vec3 normal);
+Vec3 random_hemi_normal_distribution(Vec3 normal);
+
+float lerp(float a, float b, float t);
+int sign(float v);
+unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width);
 
 ///////////////////////////////
 // ========== RAY ========== //
@@ -77,21 +110,8 @@ typedef struct Ray3Hit
     Vec3 normal;
     int hit;
     float t;
+    int is_backface;
 } Ray3Hit;
-
-//////////////////////////////////////
-// ========== MATH_UTILS ========== //
-//////////////////////////////////////
-static const double PI = 3.14159265358979323846;
-
-void random_thread_init(int thread_id);
-float random_float_thread();
-
-Vec3 random_hemi(Vec3 normal);
-Vec3 random_hemi_normal_distribution(Vec3 normal);
-
-float lerp(float a, float b, float t);
-unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width);
 
 ///////////////////////////////
 // ========== MAT ========== //
@@ -102,6 +122,8 @@ typedef struct Mat
     Vec3 emission;
     float emission_strength;
     float roughness;
+    int is_transparent;
+    float ior;
 } Mat;
 
 Mat *material_create();
@@ -184,9 +206,9 @@ World *world_create(unsigned int max_objects);
 void world_add_object(World *world, void *object, ObjectType object_type);
 void world_delete(World *world);
 
-///////////////////////////////
-// ========== CAM ========== //
-///////////////////////////////
+//////////////////////////////////
+// ========== CAMERA ========== //
+//////////////////////////////////
 typedef struct Cam
 {
     Vec3 position;
@@ -331,6 +353,189 @@ void vec_rotate(Vec3 *point, Vec3 rotation)
     point->y = p1_rotated_y_2;
     point->z = p1_rotated_z_2;
 }
+//////////////////////////////////
+// ========== MATRIX ========== //
+//////////////////////////////////
+Mat4x4 mat_4x4_mult(Mat4x4 a, Mat4x4 b)
+{
+    Mat4x4 out;
+
+    out.m[0][0] = a.m[0][0] * b.m[0][0] + a.m[0][1] * b.m[1][0] + a.m[0][2] * b.m[2][0] + a.m[0][3] * b.m[3][0];
+    out.m[0][1] = a.m[0][0] * b.m[0][1] + a.m[0][1] * b.m[1][1] + a.m[0][2] * b.m[2][1] + a.m[0][3] * b.m[3][1];
+    out.m[0][2] = a.m[0][0] * b.m[0][2] + a.m[0][1] * b.m[1][2] + a.m[0][2] * b.m[2][2] + a.m[0][3] * b.m[3][2];
+    out.m[0][3] = a.m[0][0] * b.m[0][3] + a.m[0][1] * b.m[1][3] + a.m[0][2] * b.m[2][3] + a.m[0][3] * b.m[3][3];
+
+    out.m[1][0] = a.m[1][0] * b.m[0][0] + a.m[1][1] * b.m[1][0] + a.m[1][2] * b.m[2][0] + a.m[1][3] * b.m[3][0];
+    out.m[1][1] = a.m[1][0] * b.m[0][1] + a.m[1][1] * b.m[1][1] + a.m[1][2] * b.m[2][1] + a.m[1][3] * b.m[3][1];
+    out.m[1][2] = a.m[1][0] * b.m[0][2] + a.m[1][1] * b.m[1][2] + a.m[1][2] * b.m[2][2] + a.m[1][3] * b.m[3][2];
+    out.m[1][3] = a.m[1][0] * b.m[0][3] + a.m[1][1] * b.m[1][3] + a.m[1][2] * b.m[2][3] + a.m[1][3] * b.m[3][3];
+
+    out.m[2][0] = a.m[2][0] * b.m[0][0] + a.m[2][1] * b.m[1][0] + a.m[2][2] * b.m[2][0] + a.m[2][3] * b.m[3][0];
+    out.m[2][1] = a.m[2][0] * b.m[0][1] + a.m[2][1] * b.m[1][1] + a.m[2][2] * b.m[2][1] + a.m[2][3] * b.m[3][1];
+    out.m[2][2] = a.m[2][0] * b.m[0][2] + a.m[2][1] * b.m[1][2] + a.m[2][2] * b.m[2][2] + a.m[2][3] * b.m[3][2];
+    out.m[2][3] = a.m[2][0] * b.m[0][3] + a.m[2][1] * b.m[1][3] + a.m[2][2] * b.m[2][3] + a.m[2][3] * b.m[3][3];
+
+    out.m[3][0] = a.m[3][0] * b.m[0][0] + a.m[3][1] * b.m[1][0] + a.m[3][2] * b.m[2][0] + a.m[3][3] * b.m[3][0];
+    out.m[3][1] = a.m[3][0] * b.m[0][1] + a.m[3][1] * b.m[1][1] + a.m[3][2] * b.m[2][1] + a.m[3][3] * b.m[3][1];
+    out.m[3][2] = a.m[3][0] * b.m[0][2] + a.m[3][1] * b.m[1][2] + a.m[3][2] * b.m[2][2] + a.m[3][3] * b.m[3][2];
+    out.m[3][3] = a.m[3][0] * b.m[0][3] + a.m[3][1] * b.m[1][3] + a.m[3][2] * b.m[2][3] + a.m[3][3] * b.m[3][3];
+
+    return out;
+}
+Vec3 mat_4x4_mult_vec3(Mat4x4 m, Vec3 v)
+{
+    Vec3 out;
+
+    out.x = v.x * m.m[0][0] + v.y * m.m[0][1] + v.z * m.m[0][2] + 1.0f * m.m[0][3];
+    out.y = v.x * m.m[1][0] + v.y * m.m[1][1] + v.z * m.m[1][2] + 1.0f * m.m[1][3];
+    out.z = v.x * m.m[2][0] + v.y * m.m[2][1] + v.z * m.m[2][2] + 1.0f * m.m[2][3];
+
+    return out;
+}
+
+Mat4x4 mat_create_translation(Vec3 translation)
+{
+    Mat4x4 out;
+    
+    out.m[0][0] = 1.0f;
+    out.m[0][1] = 0;
+    out.m[0][2] = 0;
+    out.m[0][3] = translation.x;
+
+    out.m[1][0] = 0;
+    out.m[1][1] = 1.0f;
+    out.m[1][2] = 0;
+    out.m[1][3] = translation.y;
+
+    out.m[2][0] = 0;
+    out.m[2][1] = 0;
+    out.m[2][2] = 1.0f;
+    out.m[2][3] = translation.z;
+
+    out.m[3][0] = 0;
+    out.m[3][1] = 0;
+    out.m[3][2] = 0;
+    out.m[3][3] = 1.0f;
+
+    return out;
+}
+
+Mat4x4 mat_create_rotation(Vec3 rotation)
+{
+    float x_cos = cosf(rotation.x);
+    float x_sin = sinf(rotation.x);
+    float y_cos = cosf(rotation.y);
+    float y_sin = sinf(rotation.y);
+    float z_cos = cosf(rotation.z);
+    float z_sin = sinf(rotation.z);
+
+    Mat4x4 rot;
+
+    rot.m[0][0] = z_cos * y_cos;
+    rot.m[0][1] = z_cos * y_sin * x_sin - z_sin * x_cos;
+    rot.m[0][2] = z_cos * y_sin * x_cos + z_sin * x_sin;
+    rot.m[0][3] = 0.0f;
+
+    rot.m[1][0] = z_sin * y_cos;
+    rot.m[1][1] = z_sin * y_sin * x_sin + z_cos * x_cos;
+    rot.m[1][2] = z_sin * y_sin * x_cos - z_cos * x_sin;
+    rot.m[1][3] = 0.0f;
+
+    rot.m[2][0] = -y_sin;
+    rot.m[2][1] = y_cos * x_sin;
+    rot.m[2][2] = y_cos * x_cos;
+    rot.m[2][3] = 0.0f;
+
+    rot.m[3][0] = 0;
+    rot.m[3][1] = 0;
+    rot.m[3][2] = 0;
+    rot.m[3][3] = 1.0f;
+
+    return rot;
+}
+
+Mat4x4 mat_create_scale(Vec3 scale)
+{
+    Mat4x4 out;
+
+    out.m[0][0] = scale.x;
+    out.m[0][1] = 0;
+    out.m[0][2] = 0;
+    out.m[0][3] = 0;
+
+    out.m[1][0] = 0;
+    out.m[1][1] = scale.y;
+    out.m[1][2] = 0;
+    out.m[1][3] = 0;
+
+    out.m[2][0] = 0;
+    out.m[2][1] = 0;
+    out.m[2][2] = scale.z;
+    out.m[2][3] = 0;
+
+    out.m[3][0] = 0;
+    out.m[3][1] = 0;
+    out.m[3][2] = 0;
+    out.m[3][3] = 1.0f;
+
+    return out;
+}
+
+//////////////////////////////////////
+// ========== MATH_UTILS ========== //
+//////////////////////////////////////
+static __thread unsigned int seed = 0;
+
+void random_thread_init(int thread_id)
+{
+    seed = (unsigned int)time(NULL) + thread_id;
+}
+
+float random_float_thread()
+{
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return 2.0f * (seed / (float)UINT_MAX) - 1.0f;
+}
+
+Vec3 random_hemi(Vec3 normal)
+{
+    Vec3 dir = (Vec3){random_float_thread(), random_float_thread(), random_float_thread()};
+    return vec_mult_v(dir, sign(vec_dot(normal, dir)));
+}
+
+Vec3 random_hemi_normal_distribution(Vec3 normal)
+{
+    float u1 = (random_float_thread() + 1.0f) * 0.5f;
+    float u2 = (random_float_thread() + 1.0f) * 0.5f;
+
+    float cos_theta = u1;
+    float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+    float phi = 2.0f * PI * u2;
+
+    Vec3 local_dir = {
+        sin_theta * cosf(phi),
+        sin_theta * sinf(phi),
+        cos_theta};
+
+    return vec_mult_v(local_dir, sign(vec_dot(normal, local_dir)));
+}
+
+float lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
+int sign(float v)
+{
+    return v < 0.0f ? -1 : 1;
+}
+
+unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
+{
+    return y * width + x;
+}
 
 ///////////////////////////////
 // ========== RAY ========== //
@@ -344,7 +549,7 @@ Vec3 ray_at(const Ray3 *ray, float t)
 }
 
 // Möller–Trumbore intersection
-// thanks Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
+// thanks to Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
 Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
 {
     Ray3Hit hit;
@@ -352,44 +557,40 @@ Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
 
     Vec3 edge1 = vec_sub(tri->p2, tri->p1);
     Vec3 edge2 = vec_sub(tri->p3, tri->p1);
-    Vec3 normal = vec_cross(edge1, edge2);
+    Vec3 tri_normal = vec_cross(edge1, edge2);
 
-    float det = -vec_dot(ray->direction, normal);
-
-    if (det < 1e-6f)
+    float det = vec_dot(ray->direction, tri_normal);
+    if (det > -1e-6f)
     {
         return hit;
     }
 
     float invdet = 1.0f / det;
 
-    Vec3 ao = vec_sub(ray->origin, tri->p1);
-    Vec3 dao = vec_cross(ao, ray->direction);
+    Vec3 ray_offset = vec_sub(ray->origin, tri->p1);
 
-    float dst = vec_dot(ao, normal) * invdet;
-
+    float dst = -vec_dot(ray_offset, tri_normal) * invdet;
     if (dst < 0.0f)
     {
         return hit;
     }
 
-    float u = vec_dot(edge2, dao) * invdet;
+    Vec3 ray_offset_perp = vec_cross(ray_offset, ray->direction);
 
+    float u = -vec_dot(edge2, ray_offset_perp) * invdet;
     if (u < 0.0f || u > 1.0f)
     {
         return hit;
     }
-
-    float v = -vec_dot(edge1, dao) * invdet;
-
+    float v = vec_dot(edge1, ray_offset_perp) * invdet;
     if (v < 0.0f || u + v > 1.0f)
     {
-        return (Ray3Hit){.hit = 0};
+        return hit;
     }
 
     float w = 1.0f - u - v;
 
-    hit.hit = det >= 1e-6 && dst >= 0.0f && u >= 0.0f && v >= 0.0f && w >= 0.0f ? 1 : 0;
+    hit.hit = 1;
     hit.pos = ray_at(ray, dst);
     hit.normal = vec_normalize((Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
                                       tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
@@ -432,65 +633,24 @@ void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
     Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength);
     ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
 
-    // reflective bounce
-    Vec3 i_n = vec_normalize(ray->direction);
-    float d = vec_dot(i_n, hit->normal);
-    ray->origin = hit->pos;
-    ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
+    if (mat->is_transparent)
+    {
+        Vec3 i_n = vec_normalize(ray->direction);
+        ray->origin = vec_add(hit->pos, i_n);
+        ray->direction = i_n;
+        ray->direction.x *= 2.0f;
+    }
+    else
+    {
+        // reflective bounce
+        Vec3 i_n = vec_normalize(ray->direction);
+        float d = vec_dot(i_n, hit->normal);
+        ray->origin = hit->pos;
+        ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
 
-    // scatter from roughness
-    ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
-}
-
-//////////////////////////////////////
-// ========== MATH_UTILS ========== //
-//////////////////////////////////////
-static __thread unsigned int seed = 0;
-
-void random_thread_init(int thread_id)
-{
-    seed = (unsigned int)time(NULL) + thread_id;
-}
-
-float random_float_thread()
-{
-    seed ^= seed << 13;
-    seed ^= seed >> 17;
-    seed ^= seed << 5;
-    return 2.0f * (seed / (float)UINT_MAX) - 1.0f;
-}
-
-Vec3 random_hemi(Vec3 normal)
-{
-    Vec3 dir = (Vec3){random_float_thread(), random_float_thread(), random_float_thread()};
-    return vec_mult_v(dir, (vec_dot(normal, dir) < 0 ? -1 : 1));
-}
-
-Vec3 random_hemi_normal_distribution(Vec3 normal)
-{
-    float u1 = (random_float_thread() + 1.0f) * 0.5f;
-    float u2 = (random_float_thread() + 1.0f) * 0.5f;
-
-    float cos_theta = u1;
-    float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
-    float phi = 2.0f * PI * u2;
-
-    Vec3 local_dir = {
-        sin_theta * cosf(phi),
-        sin_theta * sinf(phi),
-        cos_theta};
-
-    return vec_mult_v(local_dir, (vec_dot(normal, local_dir) < 0 ? -1 : 1));
-}
-
-float lerp(float a, float b, float t)
-{
-    return a + t * (b - a);
-}
-
-unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
-{
-    return y * width + x;
+        // scatter from roughness
+        ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
+    }
 }
 
 ///////////////////////////////
@@ -503,6 +663,8 @@ Mat *material_create()
     mat->emission = (Vec3){1.0f, 1.0f, 1.0f};
     mat->emission_strength = 0.0f;
     mat->roughness = 1.0f;
+    mat->is_transparent = 0;
+    mat->ior = 1.0f;
     return mat;
 }
 
@@ -788,9 +950,9 @@ void world_delete(World *world)
     free(world);
 }
 
-///////////////////////////////
-// ========== CAM ========== //
-///////////////////////////////
+//////////////////////////////////
+// ========== CAMERA ========== //
+//////////////////////////////////
 Cam *camera_create()
 {
     Cam *cam = (Cam *)malloc(sizeof(Cam));
@@ -1030,18 +1192,12 @@ void render_chunk(void *data)
         int y = i / rs->width;
 
         Vec3 pixel_center = vec_add(pixel00_pos, (Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
-        Vec3 ray_direction = vec_sub(pixel_center, rs->camera->position);
-        Vec3 ray_dir_normal = vec_normalize(ray_direction);
-        Vec3 ray_rotated_normal = ray_dir_normal;
 
-        float temp_y = ray_dir_normal.y * cosf(rs->camera->rotation.x) - ray_dir_normal.z * sinf(rs->camera->rotation.x);
-        float temp_z = ray_dir_normal.y * sinf(rs->camera->rotation.x) + ray_dir_normal.z * cosf(rs->camera->rotation.x);
+        Mat4x4 translate = mat_create_translation(vec_mult_v(rs->camera->position, -1));
+        Mat4x4 rotation = mat_create_rotation(rs->camera->rotation);
+        Mat4x4 transform = mat_4x4_mult(rotation, translate);
 
-        ray_rotated_normal.x = ray_dir_normal.x * cosf(rs->camera->rotation.y) + temp_z * sinf(rs->camera->rotation.y);
-        ray_rotated_normal.y = temp_y;
-        ray_rotated_normal.z = temp_z * cosf(rs->camera->rotation.y) - ray_dir_normal.x * sinf(rs->camera->rotation.y);
-
-        ray_direction = vec_mult_v(ray_rotated_normal, vec_length(ray_direction));
+        Vec3 ray_direction = mat_4x4_mult_vec3(transform, pixel_center);
 
         Vec3 render_color = (Vec3){0, 0, 0};
 
@@ -1086,7 +1242,6 @@ void render_chunk(void *data)
                     Vec3 unit_direction = vec_mult_v(vec_normalize(ray.direction), -1.0f);
                     float a = 0.5f * (unit_direction.y + 1.0f);
                     Vec3 color = vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
-                    // color = vec_div_v(color, 1.5f);
                     ray.radiance = vec_add(ray.radiance, vec_mult(ray.color, color));
                     break;
                 }
@@ -1120,11 +1275,11 @@ void render_chunk(void *data)
         rc->thread_station->pixels[index_2d_to_1d(x, y, rc->settings->width)] = render_color;
 
         // display render progress
-        if (i % 100 == 0 && rc->index == 3)
-        {
-            printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
-            fflush(stdout);
-        }
+        // if (i % 100 == 0 && rc->index == 5)
+        // {
+        //     printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
+        //     fflush(stdout);
+        // }
     }
 }
 

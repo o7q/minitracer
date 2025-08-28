@@ -3,79 +3,42 @@
 
 int main(void)
 {
-    int windowScale = 6;
+    int windowScale = 5;
 
     World *world = world_create(100);
     Cam *camera = camera_create();
     camera->position.x = 0;
     camera->position.y = -1.3f;
     camera->position.z = 4.0f;
-    Renderer *renderer = renderer_create(100, 100, 16);
+    camera->rotation.x = 0;
+    camera->rotation.y = 0;
+    camera->rotation.z = 0;
+    camera->fov = 1.0f;
+    Renderer *renderer = renderer_create(150, 120, 16);
 
     renderer_set_world(renderer, world);
     renderer_set_camera(renderer, camera);
     renderer_set_samples(renderer, 20);
     renderer_set_bounces(renderer, 6);
 
-    Mat *matte_mat = material_create();
-    Mat *matte_mat_red = material_create();
-    matte_mat_red->color = (Vec3){1, 0, 0};
-    Mat *matte_mat_green = material_create();
-    matte_mat_green->color = (Vec3){0, 1, 0};
-    Mat *emission_mat = material_create();
-    emission_mat->emission = (Vec3){255 / 255.0f, 247 / 255.0f, 153 / 255.0f};
-    emission_mat->emission_strength = 4.0f;
-    Mat *glossy_mat = material_create();
-    glossy_mat->roughness = 0.1f;
+    Mat *mat_diffuse = material_create();
+    Mat *mat_diffuse_red = material_create();
+    mat_diffuse_red->color = (Vec3){1.0f, 0.2f, 0.3f};
+    Mat *mat_glass = material_create();
+    mat_glass->is_transparent = 1;
+    mat_glass->ior = 1.0f;
 
-    MeshObj *floor = mesh_create_plane(matte_mat);
-    mesh_scale(floor, (Vec3){20.0f, 1.0f, 20.0f});
-    mesh_init_normals(floor);
+    MeshObj *floor = mesh_create_plane(mat_diffuse);
+    mesh_scale(floor, (Vec3){20, 1, 20});
     world_add_object(world, floor, OBJECT_MESH);
 
-    MeshObj *wall = mesh_create_plane(matte_mat_red);
-    mesh_scale(wall, (Vec3){3.0f, 1.0f, 3.0f});
-    mesh_move(wall, (Vec3){-1.5f, -1.5f, -0.1f});
-    mesh_rotate(wall, (Vec3){0, 0, 3.14159 / 2.0f});
-    world_add_object(world, wall, OBJECT_MESH);
+    SphereObj *ball = sphere_create((Vec3){0, -1, -6}, 1.0f, mat_diffuse_red);
+    world_add_object(world, ball, OBJECT_SPHERE);
 
-    MeshObj *wall2 = mesh_create_plane(matte_mat_green);
-    mesh_scale(wall2, (Vec3){3.0f, 1.0f, 3.0f});
-    mesh_move(wall2, (Vec3){1.5f, -1.5f, -0.1f});
-    mesh_rotate(wall2, (Vec3){0, 0, -3.14159 / 2.0f});
-    world_add_object(world, wall2, OBJECT_MESH);
-
-    MeshObj *wall3 = mesh_create_plane(matte_mat);
-    mesh_scale(wall3, (Vec3){3.0f, 1.0f, 3.0f});
-    mesh_move(wall3, (Vec3){0.0f, -1.5f, -1.5f});
-    mesh_rotate(wall3, (Vec3){-3.14159 / 2.0f, 0, 0});
-    world_add_object(world, wall3, OBJECT_MESH);
-
-    MeshObj *ceil = mesh_create_plane(matte_mat);
-    mesh_scale(ceil, (Vec3){3.0f, 1.0f, 3.0f});
-    mesh_move(ceil, (Vec3){0.0f, -2.9f, -0.1f});
-    mesh_rotate(ceil, (Vec3){-3.14159, 0, 0});
-    world_add_object(world, ceil, OBJECT_MESH);
-
-    MeshObj *light = mesh_create_plane(emission_mat);
-    mesh_scale(light, (Vec3){1.0f, 1.0f, 1.0f});
-    mesh_move(light, (Vec3){0.0f, -2.8f, 0.0f});
-    mesh_rotate(light, (Vec3){-3.14159, 0, 0});
-    world_add_object(world, light, OBJECT_MESH);
-
-    MeshObj *cube = mesh_create_cube(matte_mat);
-    mesh_move(cube, (Vec3){0.6f, -0.5f, 0});
-    mesh_rotate(cube, (Vec3){0, -0.5f, 0});
+    MeshObj *cube = mesh_create_cube(mat_glass);
+    mesh_scale(cube, (Vec3){2, 2, 2});
+    mesh_move(cube, (Vec3){0, -1, 0});
     world_add_object(world, cube, OBJECT_MESH);
-
-    MeshObj *cube2 = mesh_create_cube(matte_mat);
-    mesh_move(cube2, (Vec3){-0.6f, -0.5f, -0.6f});
-    mesh_scale(cube2, (Vec3){1, 2, 1});
-    mesh_rotate(cube2, (Vec3){0, 0.5f, 0});
-    world_add_object(world, cube2, OBJECT_MESH);
-
-    SphereObj *sphere = sphere_create((Vec3){-0.6f, -0.5f, 0.62f}, 0.5f, glossy_mat);
-    world_add_object(world, sphere, OBJECT_SPHERE);
 
     Color *color = (Color *)malloc(sizeof(Color) * renderer->settings.width * renderer->settings.height);
     InitWindow(renderer->settings.width * windowScale, renderer->settings.height * windowScale, "minitracer");
@@ -128,19 +91,24 @@ int main(void)
         }
         if (IsKeyDown(KEY_UP))
         {
-            camera->rotation.x -= 0.1f / camera->fov;
+            camera->rotation.x -= 0.1f / camera->fov / 2.0f;
         }
         if (IsKeyDown(KEY_DOWN))
         {
-            camera->rotation.x += 0.1f / camera->fov;
+            camera->rotation.x += 0.1f / camera->fov / 2.0f;
         }
         if (IsKeyDown(KEY_LEFT))
         {
-            camera->rotation.y += 0.1f / camera->fov;
+            camera->rotation.y += 0.1f / camera->fov / 2.0f;
         }
         if (IsKeyDown(KEY_RIGHT))
         {
-            camera->rotation.y -= 0.1f / camera->fov;
+            camera->rotation.y -= 0.1f / camera->fov / 2.0f;
+        }
+        if (IsKeyDown(KEY_ONE))
+        {
+            printf("pos: %.3f %.3f %.3f\nrot: %.3f %.3f %.3f\nfov: %.3f\n\n", camera->position.x, camera->position.y, camera->position.z, camera->rotation.x, camera->rotation.y, camera->rotation.z, camera->fov);
+            fflush(stdout);
         }
 
         BeginTextureMode(target);
@@ -165,9 +133,6 @@ int main(void)
         Rectangle dest = {0, 0, (float)renderer->settings.width * windowScale, (float)renderer->settings.height * windowScale};
         DrawTexturePro(target.texture, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
         EndDrawing();
-
-        // printf("pos: %.3f %.3f %.3f\nrot: %.3f %.3f %.3f\n\n", camera->position.x, camera->position.y, camera->position.z, camera->rotation.x, camera->rotation.y, camera->rotation.z);
-        // fflush(stdout);
     }
 
     CloseWindow();
