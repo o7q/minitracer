@@ -37,97 +37,65 @@
 ///////////////////////////////
 // ========== VEC ========== //
 ///////////////////////////////
-typedef struct Vec3
+typedef struct MT_Vec3
 {
     float x, y, z;
-} Vec3;
+} MT_Vec3;
 
-Vec3 vec_add(Vec3 a, Vec3 b);
-Vec3 vec_sub(Vec3 a, Vec3 b);
-Vec3 vec_mult(Vec3 a, Vec3 b);
-Vec3 vec_div(Vec3 a, Vec3 b);
+MT_Vec3 vec3_add(MT_Vec3 a, MT_Vec3 b);
+MT_Vec3 vec3_sub(MT_Vec3 a, MT_Vec3 b);
+MT_Vec3 vec3_mult(MT_Vec3 a, MT_Vec3 b);
+MT_Vec3 vec3_div(MT_Vec3 a, MT_Vec3 b);
 
-Vec3 vec_add_v(Vec3 a, float v);
-Vec3 vec_sub_v(Vec3 a, float v);
-Vec3 vec_mult_v(Vec3 a, float v);
-Vec3 vec_div_v(Vec3 a, float v);
+MT_Vec3 vec3_add_v(MT_Vec3 a, float v);
+MT_Vec3 vec3_sub_v(MT_Vec3 a, float v);
+MT_Vec3 vec3_mult_v(MT_Vec3 a, float v);
+MT_Vec3 vec3_div_v(MT_Vec3 a, float v);
 
-float vec_dot(Vec3 a, Vec3 b);
-Vec3 vec_cross(Vec3 a, Vec3 b);
+float vec3_dot(MT_Vec3 a, MT_Vec3 b);
+MT_Vec3 vec3_cross(MT_Vec3 a, MT_Vec3 b);
 
-float vec_length_squared(Vec3 a);
-float vec_length(Vec3 a);
-Vec3 vec_normalize(Vec3 a);
-Vec3 vec_lerp(Vec3 a, Vec3 b, float t);
-
-void vec_translate(Vec3 *point, Vec3 translation);
-void vec_rotate(Vec3 *point, Vec3 rotation);
+float vec3_length_squared(MT_Vec3 a);
+float vec3_length(MT_Vec3 a);
+MT_Vec3 vec3_normalize(MT_Vec3 a);
+MT_Vec3 vec3_lerp(MT_Vec3 a, MT_Vec3 b, float t);
 
 //////////////////////////////////
 // ========== MATRIX ========== //
 //////////////////////////////////
-typedef struct Mat4x4
+typedef struct MT_Mat4x4
 {
     float m[4][4];
-} Mat4x4;
+} MT_Mat4x4;
 
-Mat4x4 mat_4x4_mult(Mat4x4 a, Mat4x4 b);
-Vec3 mat_4x4_mult_vec3(Mat4x4 m, Vec3 v);
+MT_Mat4x4 mat4x4_mult(MT_Mat4x4 a, MT_Mat4x4 b);
+MT_Vec3 mat4x4_mult_vec3(MT_Mat4x4 m, MT_Vec3 v);
 
-Mat4x4 mat_create_translation(Vec3 translation);
-Mat4x4 mat_create_rotation(Vec3 rotation);
-Mat4x4 mat_create_scale(Vec3 scale);
+MT_Mat4x4 mat4x4_create_translation(MT_Vec3 translation);
+MT_Mat4x4 mat4x4_create_rotation(MT_Vec3 rotation);
+MT_Mat4x4 mat4x4_create_scale(MT_Vec3 scale);
 
 //////////////////////////////////////
-// ========== MATH_UTILS ========== //
+// ========== MATH UTILS ========== //
 //////////////////////////////////////
-static const double PI = 3.14159265358979323846;
+static const double MT_PI = 3.14159265358979323846;
+static const double MT_EPSILON = 0.000001;
 
-void random_thread_init(int thread_id);
-float random_float_thread();
-
-Vec3 random_hemi(Vec3 normal);
-Vec3 random_hemi_normal_distribution(Vec3 normal);
-
-float lerp(float a, float b, float t);
-int sign(float v);
-unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width);
-
-///////////////////////////////
-// ========== RAY ========== //
-///////////////////////////////
-typedef struct Ray3
+////////////////////////////////////
+// ========== MATERIAL ========== //
+////////////////////////////////////
+typedef struct MT_Material
 {
-    Vec3 origin;
-    Vec3 direction;
-    Vec3 radiance;
-    Vec3 color;
-} Ray3;
-
-typedef struct Ray3Hit
-{
-    Vec3 pos;
-    Vec3 normal;
-    int hit;
-    float t;
-    int is_backface;
-} Ray3Hit;
-
-///////////////////////////////
-// ========== MAT ========== //
-///////////////////////////////
-typedef struct Mat
-{
-    Vec3 color;
-    Vec3 emission;
+    MT_Vec3 color;
+    MT_Vec3 emission;
     float emission_strength;
     float roughness;
     int is_transparent;
     float ior;
-} Mat;
+} MT_Material;
 
-Mat *material_create();
-void material_delete(Mat *material);
+MT_Material *material_create();
+void material_delete(MT_Material *material);
 
 //////////////////////////////////
 // ========== OBJECT ========== //
@@ -139,60 +107,52 @@ typedef enum ObjectType
     OBJECT_SPHERE
 } ObjectType;
 
-typedef struct TriObj
+typedef struct MT_Tri
 {
-    Vec3 p1, p2, p3;
-    Vec3 p1_n, p2_n, p3_n;
-    Vec3 normal;
+    MT_Vec3 p1, p2, p3;
+    MT_Vec3 p1_n, p2_n, p3_n;
+    MT_Vec3 normal;
 
-    Mat *mat;
-} TriObj;
+    MT_Material *mat;
+} MT_Tri;
 
-typedef struct MeshObj
+typedef struct MT_Mesh MT_Mesh;
+
+typedef struct MT_Sphere
 {
-    TriObj **tris;
-
-    Vec3 offset_history;
-
-    unsigned int max_tris;
-    unsigned int tri_index;
-} MeshObj;
-
-typedef struct SphereObj
-{
-    Vec3 position;
+    MT_Vec3 position;
     float radius;
 
-    Mat *mat;
-} SphereObj;
+    MT_Material *mat;
+} MT_Sphere;
 
-void tri_init_normals(TriObj *tri);
-TriObj *tri_create(Vec3 p1, Vec3 p2, Vec3 p3, Mat *mat);
-void tri_delete(TriObj *tri);
+MT_Tri *tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat);
+void tri_delete(MT_Tri *tri);
 
-MeshObj *mesh_create(unsigned int max_tris);
-MeshObj *mesh_create_plane(Mat *material);
-MeshObj *mesh_create_cube(Mat *material);
-void mesh_add_tri(MeshObj *mesh, TriObj *tri);
-void mesh_init_normals(MeshObj *mesh);
-void mesh_move(MeshObj *mesh, Vec3 position);
-void mesh_rotate(MeshObj *mesh, Vec3 rotation);
-void mesh_scale(MeshObj *mesh, Vec3 scale);
-void mesh_delete(MeshObj *mesh);
+MT_Mesh *mesh_create(unsigned int max_tris);
+MT_Mesh *mesh_create_plane(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material);
+MT_Mesh *mesh_create_cube(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material);
+void mesh_add_tri(MT_Mesh *mesh, MT_Tri *tri);
+void mesh_init_normals(MT_Mesh *mesh);
+void mesh_move(MT_Mesh *mesh, MT_Vec3 position);
+void mesh_rotate(MT_Mesh *mesh, MT_Vec3 rotation);
+void mesh_scale(MT_Mesh *mesh, MT_Vec3 scale);
+void mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_Vec3 scale);
+void mesh_delete(MT_Mesh *mesh);
 
-SphereObj *sphere_create(Vec3 position, float radius, Mat *mat);
-void sphere_delete(SphereObj *sphere);
+MT_Sphere *sphere_create(MT_Vec3 position, float radius, MT_Material *mat);
+void sphere_delete(MT_Sphere *sphere);
 
-Vec3 ray_at(const Ray3 *ray, float t);
-Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri);
-Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere);
-
-void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat);
+///////////////////////////////
+// ========== RAY ========== //
+///////////////////////////////
+typedef struct MT_Ray MT_Ray;
+typedef struct MT_RayHit MT_RayHit;
 
 /////////////////////////////////
 // ========== WORLD ========== //
 /////////////////////////////////
-typedef struct World
+typedef struct MT_World
 {
     void **objects;
     ObjectType *objects_track;
@@ -200,165 +160,160 @@ typedef struct World
     unsigned int object_index;
     unsigned int max_objects;
 
-} World;
+} MT_World;
 
-World *world_create(unsigned int max_objects);
-void world_add_object(World *world, void *object, ObjectType object_type);
-void world_delete(World *world);
+MT_World *world_create(unsigned int max_objects);
+void world_add_object(MT_World *world, void *object, ObjectType object_type);
+void world_delete(MT_World *world);
 
 //////////////////////////////////
 // ========== CAMERA ========== //
 //////////////////////////////////
-typedef struct Cam
+typedef struct MT_Camera
 {
-    Vec3 position;
-    Vec3 rotation;
+    MT_Vec3 position;
+    MT_Vec3 rotation;
 
     float fov;
-} Cam;
+} MT_Camera;
 
-Cam *camera_create();
-void camera_delete(Cam *cam);
+MT_Camera *camera_create();
+void camera_delete(MT_Camera *cam);
 
 //////////////////////////////////
 // ========== RENDER ========== //
 //////////////////////////////////
-typedef struct RenderSettings
-{
-    World *world;
-    Cam *camera;
+typedef struct MT_RenderSettings MT_RenderSettings;
+typedef struct MT_RenderThreadStation MT_RenderThreadStation;
+typedef struct MT_RenderChunk MT_RenderChunk;
+typedef struct MT_Renderer MT_Renderer;
 
-    int width, height;
+MT_Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count);
+void renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
+void renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
+void renderer_set_world(MT_Renderer *renderer, MT_World *world);
+void renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera);
+void renderer_delete(MT_Renderer *renderer);
 
-    int bounces;
-    int samples;
+MT_Vec3 *renderer_get_pixels(MT_Renderer *renderer);
+MT_Vec3 renderer_get_pixel(MT_Renderer* renderer, int x, int y);
+int renderer_get_width(MT_Renderer *renderer);
+int renderer_get_height(MT_Renderer *renderer);
 
-} RenderSettings;
-
-typedef struct RenderThreadStation
-{
-    unsigned int finished_count;
-    unsigned int thread_count;
-    pthread_mutex_t finished_mutex;
-    pthread_cond_t thread_done_cond;
-
-    Vec3 *pixels;
-} RenderThreadStation;
-
-typedef struct RenderChunk
-{
-    RenderSettings *settings;
-    unsigned int px_start;
-    unsigned int px_end;
-    unsigned int index;
-    int ready;
-    int terminate;
-
-    RenderThreadStation *thread_station;
-    pthread_mutex_t wake_mutex;
-    pthread_mutex_t terminate_mutex;
-    pthread_cond_t wake_cond;
-} RenderChunk;
-
-typedef struct Renderer
-{
-    RenderSettings settings;
-
-    pthread_t *threads;
-    RenderChunk **render_chunks;
-
-    RenderThreadStation thread_station;
-} Renderer;
-
-Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count);
-void renderer_set_samples(Renderer *renderer, unsigned int samples);
-void renderer_set_bounces(Renderer *renderer, unsigned int bounces);
-void renderer_set_world(Renderer *renderer, World *world);
-void renderer_set_camera(Renderer *renderer, Cam *camera);
-void renderer_delete(Renderer *renderer);
-
-void *worker_thread(void *data);
-void render_chunk(void *data);
-
-void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
-void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
-void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest);
-void render(Renderer *renderer);
+void render(MT_Renderer *renderer);
 
 #endif // MINITRACER_H
 
 #ifdef MINITRACER_IMPLEMENTATION
 
+//////////////////////////////////////
+// ========== MATH UTILS ========== //
+//////////////////////////////////////
+static __thread unsigned int seed = 0;
+
+static void mt__random_thread_init(int thread_id)
+{
+    seed = (unsigned int)time(NULL) + thread_id;
+}
+
+static inline float mt__random_float_thread()
+{
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return 2.0f * (seed / (float)UINT_MAX) - 1.0f;
+}
+
+static inline float mt__lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
+static inline int mt__sign(float v)
+{
+    return v < 0.0f ? -1 : 1;
+}
+
+static inline unsigned int mt__index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
+{
+    return y * width + x;
+}
+
+static inline MT_Vec3 mt__random_hemi(MT_Vec3 normal)
+{
+    MT_Vec3 dir = (MT_Vec3){mt__random_float_thread(), mt__random_float_thread(), mt__random_float_thread()};
+    return vec3_mult_v(dir, mt__sign(vec3_dot(normal, dir)));
+}
+
+static inline MT_Vec3 mt__random_hemi_normal_distribution(MT_Vec3 normal)
+{
+    float u1 = (mt__random_float_thread() + 1.0f) * 0.5f;
+    float u2 = (mt__random_float_thread() + 1.0f) * 0.5f;
+
+    float cos_theta = u1;
+    float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+    float phi = 2.0f * MT_PI * u2;
+
+    MT_Vec3 local_dir = {
+        sin_theta * cosf(phi),
+        sin_theta * sinf(phi),
+        cos_theta};
+
+    return vec3_mult_v(local_dir, mt__sign(vec3_dot(normal, local_dir)));
+}
+
 ///////////////////////////////
 // ========== VEC ========== //
 ///////////////////////////////
-Vec3 vec_add(Vec3 a, Vec3 b) { return (Vec3){a.x + b.x, a.y + b.y, a.z + b.z}; }
-Vec3 vec_sub(Vec3 a, Vec3 b) { return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
-Vec3 vec_mult(Vec3 a, Vec3 b) { return (Vec3){a.x * b.x, a.y * b.y, a.z * b.z}; }
-Vec3 vec_div(Vec3 a, Vec3 b) { return (Vec3){a.x / b.x, a.y / b.y, a.z / b.z}; }
+MT_Vec3 vec3_add(MT_Vec3 a, MT_Vec3 b) { return (MT_Vec3){a.x + b.x, a.y + b.y, a.z + b.z}; }
+MT_Vec3 vec3_sub(MT_Vec3 a, MT_Vec3 b) { return (MT_Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
+MT_Vec3 vec3_mult(MT_Vec3 a, MT_Vec3 b) { return (MT_Vec3){a.x * b.x, a.y * b.y, a.z * b.z}; }
+MT_Vec3 vec3_div(MT_Vec3 a, MT_Vec3 b) { return (MT_Vec3){a.x / b.x, a.y / b.y, a.z / b.z}; }
 
-Vec3 vec_add_v(Vec3 a, float v) { return (Vec3){a.x + v, a.y + v, a.z + v}; }
-Vec3 vec_sub_v(Vec3 a, float v) { return (Vec3){a.x - v, a.y - v, a.z - v}; }
-Vec3 vec_mult_v(Vec3 a, float v) { return (Vec3){a.x * v, a.y * v, a.z * v}; }
-Vec3 vec_div_v(Vec3 a, float v) { return (Vec3){a.x / v, a.y / v, a.z / v}; }
+MT_Vec3 vec3_add_v(MT_Vec3 a, float v) { return (MT_Vec3){a.x + v, a.y + v, a.z + v}; }
+MT_Vec3 vec3_sub_v(MT_Vec3 a, float v) { return (MT_Vec3){a.x - v, a.y - v, a.z - v}; }
+MT_Vec3 vec3_mult_v(MT_Vec3 a, float v) { return (MT_Vec3){a.x * v, a.y * v, a.z * v}; }
+MT_Vec3 vec3_div_v(MT_Vec3 a, float v) { return (MT_Vec3){a.x / v, a.y / v, a.z / v}; }
 
-float vec_dot(Vec3 a, Vec3 b)
+float vec3_dot(MT_Vec3 a, MT_Vec3 b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-Vec3 vec_cross(Vec3 a, Vec3 b)
+MT_Vec3 vec3_cross(MT_Vec3 a, MT_Vec3 b)
 {
-    return (Vec3){a.y * b.z - a.z * b.y,
-                  a.z * b.x - a.x * b.z,
-                  a.x * b.y - a.y * b.x};
+    return (MT_Vec3){a.y * b.z - a.z * b.y,
+                     a.z * b.x - a.x * b.z,
+                     a.x * b.y - a.y * b.x};
 }
 
-float vec_length_squared(Vec3 a)
+float vec3_length_squared(MT_Vec3 a)
 {
     return a.x * a.x + a.y * a.y + a.z * a.z;
 }
 
-float vec_length(Vec3 a)
+float vec3_length(MT_Vec3 a)
 {
-    return sqrtf(vec_length_squared(a));
+    return sqrtf(vec3_length_squared(a));
 }
 
-Vec3 vec_normalize(Vec3 a)
+MT_Vec3 vec3_normalize(MT_Vec3 a)
 {
-    float m = vec_length(a);
-    return (Vec3){a.x / m, a.y / m, a.z / m};
+    float m = vec3_length(a);
+    return (MT_Vec3){a.x / m, a.y / m, a.z / m};
 }
 
-Vec3 vec_lerp(Vec3 a, Vec3 b, float t)
+MT_Vec3 vec3_lerp(MT_Vec3 a, MT_Vec3 b, float t)
 {
-    return (Vec3){lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t)};
+    return (MT_Vec3){mt__lerp(a.x, b.x, t), mt__lerp(a.y, b.y, t), mt__lerp(a.z, b.z, t)};
 }
 
-void vec_rotate(Vec3 *point, Vec3 rotation)
-{
-    // x
-    float p1_rotated_y = point->y * cosf(rotation.x) - point->z * sinf(rotation.x);
-    float p1_rotated_z = point->y * sinf(rotation.x) + point->z * cosf(rotation.x);
-
-    float p1_rotated_x = point->x * cosf(rotation.y) + p1_rotated_z * sinf(rotation.y);
-    // y
-    float p1_rotated_z_2 = p1_rotated_z * cosf(rotation.y) - point->x * sinf(rotation.y);
-
-    float p1_rotated_x_2 = p1_rotated_x * cosf(rotation.z) - p1_rotated_y * sinf(rotation.z);
-    float p1_rotated_y_2 = p1_rotated_x * sinf(rotation.z) + p1_rotated_y * cosf(rotation.z);
-    // z
-
-    point->x = p1_rotated_x_2;
-    point->y = p1_rotated_y_2;
-    point->z = p1_rotated_z_2;
-}
 //////////////////////////////////
 // ========== MATRIX ========== //
 //////////////////////////////////
-Mat4x4 mat_4x4_mult(Mat4x4 a, Mat4x4 b)
+MT_Mat4x4 mat4x4_mult(MT_Mat4x4 a, MT_Mat4x4 b)
 {
-    Mat4x4 out;
+    MT_Mat4x4 out;
 
     out.m[0][0] = a.m[0][0] * b.m[0][0] + a.m[0][1] * b.m[1][0] + a.m[0][2] * b.m[2][0] + a.m[0][3] * b.m[3][0];
     out.m[0][1] = a.m[0][0] * b.m[0][1] + a.m[0][1] * b.m[1][1] + a.m[0][2] * b.m[2][1] + a.m[0][3] * b.m[3][1];
@@ -382,9 +337,10 @@ Mat4x4 mat_4x4_mult(Mat4x4 a, Mat4x4 b)
 
     return out;
 }
-Vec3 mat_4x4_mult_vec3(Mat4x4 m, Vec3 v)
+
+MT_Vec3 mat4x4_mult_vec3(MT_Mat4x4 m, MT_Vec3 v)
 {
-    Vec3 out;
+    MT_Vec3 out;
 
     out.x = v.x * m.m[0][0] + v.y * m.m[0][1] + v.z * m.m[0][2] + 1.0f * m.m[0][3];
     out.y = v.x * m.m[1][0] + v.y * m.m[1][1] + v.z * m.m[1][2] + 1.0f * m.m[1][3];
@@ -393,10 +349,10 @@ Vec3 mat_4x4_mult_vec3(Mat4x4 m, Vec3 v)
     return out;
 }
 
-Mat4x4 mat_create_translation(Vec3 translation)
+MT_Mat4x4 mat4x4_create_translation(MT_Vec3 translation)
 {
-    Mat4x4 out;
-    
+    MT_Mat4x4 out;
+
     out.m[0][0] = 1.0f;
     out.m[0][1] = 0;
     out.m[0][2] = 0;
@@ -420,7 +376,7 @@ Mat4x4 mat_create_translation(Vec3 translation)
     return out;
 }
 
-Mat4x4 mat_create_rotation(Vec3 rotation)
+MT_Mat4x4 mat4x4_create_rotation(MT_Vec3 rotation)
 {
     float x_cos = cosf(rotation.x);
     float x_sin = sinf(rotation.x);
@@ -429,7 +385,7 @@ Mat4x4 mat_create_rotation(Vec3 rotation)
     float z_cos = cosf(rotation.z);
     float z_sin = sinf(rotation.z);
 
-    Mat4x4 rot;
+    MT_Mat4x4 rot;
 
     rot.m[0][0] = z_cos * y_cos;
     rot.m[0][1] = z_cos * y_sin * x_sin - z_sin * x_cos;
@@ -454,9 +410,9 @@ Mat4x4 mat_create_rotation(Vec3 rotation)
     return rot;
 }
 
-Mat4x4 mat_create_scale(Vec3 scale)
+MT_Mat4x4 mat4x4_create_scale(MT_Vec3 scale)
 {
-    Mat4x4 out;
+    MT_Mat4x4 out;
 
     out.m[0][0] = scale.x;
     out.m[0][1] = 0;
@@ -481,186 +437,14 @@ Mat4x4 mat_create_scale(Vec3 scale)
     return out;
 }
 
-//////////////////////////////////////
-// ========== MATH_UTILS ========== //
-//////////////////////////////////////
-static __thread unsigned int seed = 0;
-
-void random_thread_init(int thread_id)
+////////////////////////////////////
+// ========== MATERIAL ========== //
+////////////////////////////////////
+MT_Material *material_create()
 {
-    seed = (unsigned int)time(NULL) + thread_id;
-}
-
-float random_float_thread()
-{
-    seed ^= seed << 13;
-    seed ^= seed >> 17;
-    seed ^= seed << 5;
-    return 2.0f * (seed / (float)UINT_MAX) - 1.0f;
-}
-
-Vec3 random_hemi(Vec3 normal)
-{
-    Vec3 dir = (Vec3){random_float_thread(), random_float_thread(), random_float_thread()};
-    return vec_mult_v(dir, sign(vec_dot(normal, dir)));
-}
-
-Vec3 random_hemi_normal_distribution(Vec3 normal)
-{
-    float u1 = (random_float_thread() + 1.0f) * 0.5f;
-    float u2 = (random_float_thread() + 1.0f) * 0.5f;
-
-    float cos_theta = u1;
-    float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
-    float phi = 2.0f * PI * u2;
-
-    Vec3 local_dir = {
-        sin_theta * cosf(phi),
-        sin_theta * sinf(phi),
-        cos_theta};
-
-    return vec_mult_v(local_dir, sign(vec_dot(normal, local_dir)));
-}
-
-float lerp(float a, float b, float t)
-{
-    return a + t * (b - a);
-}
-
-int sign(float v)
-{
-    return v < 0.0f ? -1 : 1;
-}
-
-unsigned int index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
-{
-    return y * width + x;
-}
-
-///////////////////////////////
-// ========== RAY ========== //
-///////////////////////////////
-Vec3 ray_at(const Ray3 *ray, float t)
-{
-    return (Vec3){
-        ray->origin.x + t * ray->direction.x,
-        ray->origin.y + t * ray->direction.y,
-        ray->origin.z + t * ray->direction.z};
-}
-
-// Möller–Trumbore intersection
-// thanks to Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
-Ray3Hit ray_hit_tri(const Ray3 *ray, const TriObj *tri)
-{
-    Ray3Hit hit;
-    hit.hit = 0;
-
-    Vec3 edge1 = vec_sub(tri->p2, tri->p1);
-    Vec3 edge2 = vec_sub(tri->p3, tri->p1);
-    Vec3 tri_normal = vec_cross(edge1, edge2);
-
-    float det = vec_dot(ray->direction, tri_normal);
-    if (det > -1e-6f)
-    {
-        return hit;
-    }
-
-    float invdet = 1.0f / det;
-
-    Vec3 ray_offset = vec_sub(ray->origin, tri->p1);
-
-    float dst = -vec_dot(ray_offset, tri_normal) * invdet;
-    if (dst < 0.0f)
-    {
-        return hit;
-    }
-
-    Vec3 ray_offset_perp = vec_cross(ray_offset, ray->direction);
-
-    float u = -vec_dot(edge2, ray_offset_perp) * invdet;
-    if (u < 0.0f || u > 1.0f)
-    {
-        return hit;
-    }
-    float v = vec_dot(edge1, ray_offset_perp) * invdet;
-    if (v < 0.0f || u + v > 1.0f)
-    {
-        return hit;
-    }
-
-    float w = 1.0f - u - v;
-
-    hit.hit = 1;
-    hit.pos = ray_at(ray, dst);
-    hit.normal = vec_normalize((Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
-                                      tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
-                                      tri->p1_n.z * w + tri->p2_n.z * u + tri->p3_n.z * v});
-    hit.t = dst;
-
-    return hit;
-}
-
-Ray3Hit ray_hit_sphere(const Ray3 *ray, const SphereObj *sphere)
-{
-    Ray3Hit hit;
-    hit.hit = 0;
-
-    Vec3 oc = vec_sub(sphere->position, ray->origin);
-    float a = vec_length_squared(ray->direction);
-    float h = vec_dot(ray->direction, oc);
-    float c = vec_length_squared(oc) - sphere->radius * sphere->radius;
-    float discriminant = h * h - a * c;
-    if (discriminant >= 0)
-    {
-        float t = (h - sqrtf(discriminant)) / a;
-        if (t >= 0.0f)
-        {
-            hit.hit = 1;
-            hit.t = t;
-            hit.pos = ray_at(ray, hit.t);
-            hit.normal = vec_normalize(vec_sub(hit.pos, sphere->position));
-        }
-    }
-
-    return hit;
-}
-
-void ray_bounce(Ray3 *ray, Ray3Hit *hit, Mat *mat)
-{
-    // apply color
-    ray->color = vec_mult(ray->color, mat->color);
-
-    Vec3 emittedLight = vec_mult_v(mat->emission, mat->emission_strength);
-    ray->radiance = vec_add(ray->radiance, vec_mult(emittedLight, ray->color));
-
-    if (mat->is_transparent)
-    {
-        Vec3 i_n = vec_normalize(ray->direction);
-        ray->origin = vec_add(hit->pos, i_n);
-        ray->direction = i_n;
-        ray->direction.x *= 2.0f;
-    }
-    else
-    {
-        // reflective bounce
-        Vec3 i_n = vec_normalize(ray->direction);
-        float d = vec_dot(i_n, hit->normal);
-        ray->origin = hit->pos;
-        ray->direction = vec_sub(i_n, vec_mult_v(hit->normal, 2.0f * d));
-
-        // scatter from roughness
-        ray->direction = vec_lerp(ray->direction, random_hemi_normal_distribution(hit->normal), mat->roughness);
-    }
-}
-
-///////////////////////////////
-// ========== MAT ========== //
-///////////////////////////////
-Mat *material_create()
-{
-    Mat *mat = (Mat *)malloc(sizeof(Mat));
-    mat->color = (Vec3){1.0f, 1.0f, 1.0f};
-    mat->emission = (Vec3){1.0f, 1.0f, 1.0f};
+    MT_Material *mat = (MT_Material *)malloc(sizeof(MT_Material));
+    mat->color = (MT_Vec3){1.0f, 1.0f, 1.0f};
+    mat->emission = (MT_Vec3){1.0f, 1.0f, 1.0f};
     mat->emission_strength = 0.0f;
     mat->roughness = 1.0f;
     mat->is_transparent = 0;
@@ -668,7 +452,7 @@ Mat *material_create()
     return mat;
 }
 
-void material_delete(Mat *material)
+void material_delete(MT_Material *material)
 {
     if (material)
     {
@@ -679,32 +463,42 @@ void material_delete(Mat *material)
 //////////////////////////////////
 // ========== OBJECT ========== //
 //////////////////////////////////
-void tri_init_normals(TriObj *tri)
+typedef struct MT_Mesh
 {
-    Vec3 u = vec_sub(tri->p2, tri->p1);
-    Vec3 v = vec_sub(tri->p3, tri->p1);
+    MT_Tri **tris;
 
-    Vec3 normal = vec_normalize(vec_cross(u, v));
+    MT_Vec3 origin_offset;
+
+    unsigned int max_tris;
+    unsigned int tri_index;
+} MT_Mesh;
+
+static void mt__tri_init_normals(MT_Tri *tri)
+{
+    MT_Vec3 u = vec3_sub(tri->p2, tri->p1);
+    MT_Vec3 v = vec3_sub(tri->p3, tri->p1);
+
+    MT_Vec3 normal = vec3_normalize(vec3_cross(u, v));
     tri->normal = normal;
     tri->p1_n = normal;
     tri->p2_n = normal;
     tri->p3_n = normal;
 }
 
-TriObj *tri_create(Vec3 p1, Vec3 p2, Vec3 p3, Mat *mat)
+MT_Tri *tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat)
 {
-    TriObj *tri = (TriObj *)malloc(sizeof(TriObj));
+    MT_Tri *tri = (MT_Tri *)malloc(sizeof(MT_Tri));
     tri->p1 = p1;
     tri->p2 = p2;
     tri->p3 = p3;
     tri->mat = mat;
 
-    tri_init_normals(tri);
+    mt__tri_init_normals(tri);
 
     return tri;
 }
 
-void tri_delete(TriObj *tri)
+void tri_delete(MT_Tri *tri)
 {
     if (tri)
     {
@@ -712,60 +506,62 @@ void tri_delete(TriObj *tri)
     }
 }
 
-MeshObj *mesh_create(unsigned int max_tris)
+MT_Mesh *mesh_create(unsigned int max_tris)
 {
-    MeshObj *mesh = (MeshObj *)malloc(sizeof(MeshObj));
-    mesh->tris = (TriObj **)malloc(sizeof(TriObj *) * max_tris);
+    MT_Mesh *mesh = (MT_Mesh *)malloc(sizeof(MT_Mesh));
+    mesh->tris = (MT_Tri **)malloc(sizeof(MT_Tri *) * max_tris);
     mesh->tri_index = 0;
     mesh->max_tris = max_tris;
     return mesh;
 }
 
-MeshObj *mesh_create_plane(Mat *material)
+MT_Mesh *mesh_create_plane(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material)
 {
-    MeshObj *plane = mesh_create(2);
+    MT_Mesh *plane = mesh_create(2);
 
-    TriObj *t1 = tri_create((Vec3){-0.5f, 0, 0.5f}, (Vec3){-0.5f, 0, -0.5f}, (Vec3){0.5f, 0, 0.5f}, material);
-    TriObj *t2 = tri_create((Vec3){0.5f, 0, 0.5f}, (Vec3){-0.5f, 0, -0.5f}, (Vec3){0.5f, 0, -0.5f}, material);
+    MT_Tri *t1 = tri_create((MT_Vec3){-0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, 0.5f}, material);
+    MT_Tri *t2 = tri_create((MT_Vec3){0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, -0.5f}, material);
     mesh_add_tri(plane, t1);
     mesh_add_tri(plane, t2);
+
+    mesh_transform(plane, position, rotation, scale);
 
     return plane;
 }
 
-MeshObj *mesh_create_cube(Mat *material)
+MT_Mesh *mesh_create_cube(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material)
 {
-    MeshObj *cube = mesh_create(12);
+    MT_Mesh *cube = mesh_create(12);
 
-    MeshObj **planes = (MeshObj **)malloc(sizeof(MeshObj *) * 6);
+    MT_Mesh **planes = (MT_Mesh **)malloc(sizeof(MT_Mesh *) * 6);
 
     for (int i = 0; i < 6; ++i)
     {
-        planes[i] = mesh_create_plane(material);
+        planes[i] = mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1, 1, 1}, material);
     }
 
     // top
-    mesh_move(planes[0], (Vec3){0, -0.5, 0});
+    mesh_move(planes[0], (MT_Vec3){0, -0.5, 0});
 
     // bottom
-    mesh_move(planes[1], (Vec3){0, 0.5, 0});
-    mesh_rotate(planes[1], (Vec3){PI, 0, 0});
+    mesh_move(planes[1], (MT_Vec3){0, 0.5, 0});
+    mesh_rotate(planes[1], (MT_Vec3){MT_PI, 0, 0});
 
     // front
-    mesh_move(planes[2], (Vec3){0, 0, -0.5});
-    mesh_rotate(planes[2], (Vec3){PI / 2.0f, 0, 0});
+    mesh_move(planes[2], (MT_Vec3){0, 0, -0.5});
+    mesh_rotate(planes[2], (MT_Vec3){MT_PI / 2.0f, 0, 0});
 
     // back
-    mesh_move(planes[3], (Vec3){0, 0, 0.5});
-    mesh_rotate(planes[3], (Vec3){-PI / 2.0f, 0, 0});
+    mesh_move(planes[3], (MT_Vec3){0, 0, 0.5});
+    mesh_rotate(planes[3], (MT_Vec3){-MT_PI / 2.0f, 0, 0});
 
     // left
-    mesh_move(planes[4], (Vec3){-0.5, 0, 0});
-    mesh_rotate(planes[4], (Vec3){0, 0, -PI / 2.0f});
+    mesh_move(planes[4], (MT_Vec3){-0.5, 0, 0});
+    mesh_rotate(planes[4], (MT_Vec3){0, 0, -MT_PI / 2.0f});
 
     // right
-    mesh_move(planes[5], (Vec3){0.5, 0, 0});
-    mesh_rotate(planes[5], (Vec3){0, 0, PI / 2.0f});
+    mesh_move(planes[5], (MT_Vec3){0.5, 0, 0});
+    mesh_rotate(planes[5], (MT_Vec3){0, 0, MT_PI / 2.0f});
 
     for (int i = 0; i < 6; ++i)
     {
@@ -775,11 +571,13 @@ MeshObj *mesh_create_cube(Mat *material)
 
     free(planes);
 
+    mesh_transform(cube, position, rotation, scale);
+
     return cube;
 }
 
 // moves a tri into the mesh, deleting the mesh will delete all children tris
-void mesh_add_tri(MeshObj *mesh, TriObj *tri)
+void mesh_add_tri(MT_Mesh *mesh, MT_Tri *tri)
 {
     if (mesh->tri_index >= mesh->max_tris)
     {
@@ -790,63 +588,108 @@ void mesh_add_tri(MeshObj *mesh, TriObj *tri)
     ++mesh->tri_index;
 }
 
-void mesh_init_normals(MeshObj *mesh)
+void mesh_init_normals(MT_Mesh *mesh)
 {
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        tri_init_normals(mesh->tris[i]);
+        mt__tri_init_normals(mesh->tris[i]);
     }
 }
 
-void mesh_move(MeshObj *mesh, Vec3 position)
+void mesh_move(MT_Mesh *mesh, MT_Vec3 position)
 {
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        TriObj *tri = mesh->tris[i];
+        MT_Tri *tri = mesh->tris[i];
 
-        tri->p1 = vec_add(tri->p1, position);
-        tri->p2 = vec_add(tri->p2, position);
-        tri->p3 = vec_add(tri->p3, position);
+        tri->p1 = vec3_add(tri->p1, position);
+        tri->p2 = vec3_add(tri->p2, position);
+        tri->p3 = vec3_add(tri->p3, position);
     }
 
-    mesh->offset_history = vec_add(mesh->offset_history, position);
+    mesh->origin_offset = vec3_add(mesh->origin_offset, position);
 }
 
-void mesh_rotate(MeshObj *mesh, Vec3 rotation)
+void mesh_rotate(MT_Mesh *mesh, MT_Vec3 rotation)
 {
+    MT_Mat4x4 rotation_mat = mat4x4_create_rotation(rotation);
+
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        TriObj *tri = mesh->tris[i];
-        tri->p1 = vec_sub(tri->p1, mesh->offset_history);
-        tri->p2 = vec_sub(tri->p2, mesh->offset_history);
-        tri->p3 = vec_sub(tri->p3, mesh->offset_history);
+        MT_Tri *tri = mesh->tris[i];
 
-        vec_rotate(&tri->p1, rotation);
-        vec_rotate(&tri->p2, rotation);
-        vec_rotate(&tri->p3, rotation);
-        vec_rotate(&tri->p1_n, rotation);
-        vec_rotate(&tri->p2_n, rotation);
-        vec_rotate(&tri->p3_n, rotation);
+        tri->p1 = vec3_sub(tri->p1, mesh->origin_offset);
+        tri->p2 = vec3_sub(tri->p2, mesh->origin_offset);
+        tri->p3 = vec3_sub(tri->p3, mesh->origin_offset);
 
-        tri->p1 = vec_add(tri->p1, mesh->offset_history);
-        tri->p2 = vec_add(tri->p2, mesh->offset_history);
-        tri->p3 = vec_add(tri->p3, mesh->offset_history);
+        tri->p1 = mat4x4_mult_vec3(rotation_mat, tri->p1);
+        tri->p2 = mat4x4_mult_vec3(rotation_mat, tri->p2);
+        tri->p3 = mat4x4_mult_vec3(rotation_mat, tri->p3);
+
+        tri->p1_n = mat4x4_mult_vec3(rotation_mat, tri->p1_n);
+        tri->p2_n = mat4x4_mult_vec3(rotation_mat, tri->p2_n);
+        tri->p3_n = mat4x4_mult_vec3(rotation_mat, tri->p3_n);
+
+        tri->p1 = vec3_add(tri->p1, mesh->origin_offset);
+        tri->p2 = vec3_add(tri->p2, mesh->origin_offset);
+        tri->p3 = vec3_add(tri->p3, mesh->origin_offset);
     }
 }
 
-void mesh_scale(MeshObj *mesh, Vec3 scale)
+void mesh_scale(MT_Mesh *mesh, MT_Vec3 scale)
 {
+    MT_Mat4x4 scale_mat = mat4x4_create_scale(scale);
+
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        TriObj *tri = mesh->tris[i];
+        MT_Tri *tri = mesh->tris[i];
 
-        tri->p1 = vec_mult(tri->p1, scale);
-        tri->p2 = vec_mult(tri->p2, scale);
-        tri->p3 = vec_mult(tri->p3, scale);
+        tri->p1 = mat4x4_mult_vec3(scale_mat, tri->p1);
+        tri->p2 = mat4x4_mult_vec3(scale_mat, tri->p2);
+        tri->p3 = mat4x4_mult_vec3(scale_mat, tri->p3);
     }
 }
 
-void mesh_delete(MeshObj *mesh)
+void mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_Vec3 scale)
+{
+    MT_Mat4x4 translate_mat = mat4x4_create_translation(translation);
+    MT_Mat4x4 rotation_mat = mat4x4_create_rotation(rotation);
+    MT_Mat4x4 scale_mat = mat4x4_create_scale(scale);
+
+    for (int i = 0; i < mesh->tri_index; ++i)
+    {
+        MT_Tri *tri = mesh->tris[i];
+
+        tri->p1 = vec3_sub(tri->p1, mesh->origin_offset);
+        tri->p2 = vec3_sub(tri->p2, mesh->origin_offset);
+        tri->p3 = vec3_sub(tri->p3, mesh->origin_offset);
+
+        tri->p1 = mat4x4_mult_vec3(scale_mat, tri->p1);
+        tri->p2 = mat4x4_mult_vec3(scale_mat, tri->p2);
+        tri->p3 = mat4x4_mult_vec3(scale_mat, tri->p3);
+
+        tri->p1 = mat4x4_mult_vec3(rotation_mat, tri->p1);
+        tri->p2 = mat4x4_mult_vec3(rotation_mat, tri->p2);
+        tri->p3 = mat4x4_mult_vec3(rotation_mat, tri->p3);
+
+        // fix normals
+        tri->p1_n = mat4x4_mult_vec3(rotation_mat, tri->p1_n);
+        tri->p2_n = mat4x4_mult_vec3(rotation_mat, tri->p2_n);
+        tri->p3_n = mat4x4_mult_vec3(rotation_mat, tri->p3_n);
+
+        tri->p1 = mat4x4_mult_vec3(translate_mat, tri->p1);
+        tri->p2 = mat4x4_mult_vec3(translate_mat, tri->p2);
+        tri->p3 = mat4x4_mult_vec3(translate_mat, tri->p3);
+
+        tri->p1 = vec3_add(tri->p1, mesh->origin_offset);
+        tri->p2 = vec3_add(tri->p2, mesh->origin_offset);
+        tri->p3 = vec3_add(tri->p3, mesh->origin_offset);
+    }
+
+    mesh->origin_offset = vec3_add(mesh->origin_offset, translation);
+}
+
+void mesh_delete(MT_Mesh *mesh)
 {
     if (!mesh)
     {
@@ -868,16 +711,16 @@ void mesh_delete(MeshObj *mesh)
     free(mesh);
 }
 
-SphereObj *sphere_create(Vec3 position, float radius, Mat *mat)
+MT_Sphere *sphere_create(MT_Vec3 position, float radius, MT_Material *mat)
 {
-    SphereObj *sphere = (SphereObj *)malloc(sizeof(SphereObj));
+    MT_Sphere *sphere = (MT_Sphere *)malloc(sizeof(MT_Sphere));
     sphere->position = position;
     sphere->radius = radius;
     sphere->mat = mat;
     return sphere;
 }
 
-void sphere_delete(SphereObj *sphere)
+void sphere_delete(MT_Sphere *sphere)
 {
     if (sphere)
     {
@@ -885,12 +728,145 @@ void sphere_delete(SphereObj *sphere)
     }
 }
 
+///////////////////////////////
+// ========== RAY ========== //
+///////////////////////////////
+typedef struct MT_Ray
+{
+    MT_Vec3 origin;
+    MT_Vec3 direction;
+    MT_Vec3 radiance;
+    MT_Vec3 color;
+} MT_Ray;
+
+typedef struct MT_RayHit
+{
+    MT_Vec3 pos;
+    MT_Vec3 normal;
+    int hit;
+    float t;
+    int is_backface;
+} MT_RayHit;
+
+static MT_Vec3 mt__ray_at(const MT_Ray *ray, float t)
+{
+    return (MT_Vec3){
+        ray->origin.x + t * ray->direction.x,
+        ray->origin.y + t * ray->direction.y,
+        ray->origin.z + t * ray->direction.z};
+}
+
+// Möller–Trumbore intersection
+// thanks to Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
+static MT_RayHit mt__ray_hit_tri(const MT_Ray *ray, const MT_Tri *tri)
+{
+    MT_RayHit hit;
+    hit.hit = 0;
+
+    MT_Vec3 edge1 = vec3_sub(tri->p2, tri->p1);
+    MT_Vec3 edge2 = vec3_sub(tri->p3, tri->p1);
+    MT_Vec3 tri_normal = vec3_cross(edge1, edge2);
+
+    float det = vec3_dot(ray->direction, tri_normal);
+    if (det > -MT_EPSILON)
+    {
+        return hit;
+    }
+
+    float invdet = 1.0f / det;
+
+    MT_Vec3 ray_offset = vec3_sub(ray->origin, tri->p1);
+
+    float dst = -vec3_dot(ray_offset, tri_normal) * invdet;
+    if (dst < 0.0f)
+    {
+        return hit;
+    }
+
+    MT_Vec3 ray_offset_perp = vec3_cross(ray_offset, ray->direction);
+
+    float u = -vec3_dot(edge2, ray_offset_perp) * invdet;
+    if (u < 0.0f || u > 1.0f)
+    {
+        return hit;
+    }
+    float v = vec3_dot(edge1, ray_offset_perp) * invdet;
+    if (v < 0.0f || u + v > 1.0f)
+    {
+        return hit;
+    }
+
+    float w = 1.0f - u - v;
+
+    hit.hit = 1;
+    hit.pos = mt__ray_at(ray, dst);
+    hit.normal = vec3_normalize((MT_Vec3){tri->p1_n.x * w + tri->p2_n.x * u + tri->p3_n.x * v,
+                                          tri->p1_n.y * w + tri->p2_n.y * u + tri->p3_n.y * v,
+                                          tri->p1_n.z * w + tri->p2_n.z * u + tri->p3_n.z * v});
+    hit.t = dst;
+
+    return hit;
+}
+
+static MT_RayHit mt__ray_hit_sphere(const MT_Ray *ray, const MT_Sphere *sphere)
+{
+    MT_RayHit hit;
+    hit.hit = 0;
+
+    MT_Vec3 oc = vec3_sub(sphere->position, ray->origin);
+    float a = vec3_length_squared(ray->direction);
+    float h = vec3_dot(ray->direction, oc);
+    float c = vec3_length_squared(oc) - sphere->radius * sphere->radius;
+    float discriminant = h * h - a * c;
+    if (discriminant >= 0)
+    {
+        float t = (h - sqrtf(discriminant)) / a;
+        if (t >= 0.0f)
+        {
+            hit.hit = 1;
+            hit.t = t;
+            hit.pos = mt__ray_at(ray, hit.t);
+            hit.normal = vec3_normalize(vec3_sub(hit.pos, sphere->position));
+        }
+    }
+
+    return hit;
+}
+
+static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
+{
+    // apply color
+    ray->color = vec3_mult(ray->color, mat->color);
+
+    MT_Vec3 emittedLight = vec3_mult_v(mat->emission, mat->emission_strength);
+    ray->radiance = vec3_add(ray->radiance, vec3_mult(emittedLight, ray->color));
+
+    if (mat->is_transparent)
+    {
+        MT_Vec3 i_n = vec3_normalize(ray->direction);
+        ray->origin = vec3_add(hit->pos, i_n);
+        ray->direction = i_n;
+        ray->direction.x *= 2.0f;
+    }
+    else
+    {
+        // reflective bounce
+        MT_Vec3 i_n = vec3_normalize(ray->direction);
+        float d = vec3_dot(i_n, hit->normal);
+        ray->origin = hit->pos;
+        ray->direction = vec3_sub(i_n, vec3_mult_v(hit->normal, 2.0f * d));
+
+        // scatter from roughness
+        ray->direction = vec3_lerp(ray->direction, mt__random_hemi_normal_distribution(hit->normal), mat->roughness);
+    }
+}
+
 /////////////////////////////////
 // ========== WORLD ========== //
 /////////////////////////////////
-World *world_create(unsigned int max_objects)
+MT_World *world_create(unsigned int max_objects)
 {
-    World *world = (World *)malloc(sizeof(World));
+    MT_World *world = (MT_World *)malloc(sizeof(MT_World));
     world->objects = (void **)malloc(sizeof(void *) * max_objects);
     world->objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
     world->object_index = 0;
@@ -898,7 +874,7 @@ World *world_create(unsigned int max_objects)
     return world;
 }
 
-void world_add_object(World *world, void *object, ObjectType object_type)
+void world_add_object(MT_World *world, void *object, ObjectType object_type)
 {
     if (world->object_index >= world->max_objects)
     {
@@ -910,7 +886,7 @@ void world_add_object(World *world, void *object, ObjectType object_type)
     ++world->object_index;
 }
 
-void world_delete(World *world)
+void world_delete(MT_World *world)
 {
     if (!world)
     {
@@ -953,16 +929,16 @@ void world_delete(World *world)
 //////////////////////////////////
 // ========== CAMERA ========== //
 //////////////////////////////////
-Cam *camera_create()
+MT_Camera *camera_create()
 {
-    Cam *cam = (Cam *)malloc(sizeof(Cam));
-    cam->position = (Vec3){0, 0, 0};
-    cam->rotation = (Vec3){0, 0, 0};
+    MT_Camera *cam = (MT_Camera *)malloc(sizeof(MT_Camera));
+    cam->position = (MT_Vec3){0, 0, 0};
+    cam->rotation = (MT_Vec3){0, 0, 0};
     cam->fov = 1.0f;
     return cam;
 }
 
-void camera_delete(Cam *cam)
+void camera_delete(MT_Camera *cam)
 {
     if (cam)
     {
@@ -973,17 +949,254 @@ void camera_delete(Cam *cam)
 //////////////////////////////////
 // ========== RENDER ========== //
 //////////////////////////////////
-Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
+typedef struct MT_RenderSettings
 {
-    Renderer *renderer = malloc(sizeof(Renderer));
-    *renderer = (Renderer){(RenderSettings){NULL, NULL, width, height, 5, 20}};
+    MT_World *world;
+    MT_Camera *camera;
+
+    int width, height;
+
+    int bounces;
+    int samples;
+
+} MT_RenderSettings;
+
+typedef struct MT_RenderThreadStation
+{
+    unsigned int finished_count;
+    unsigned int thread_count;
+    pthread_mutex_t finished_mutex;
+    pthread_cond_t thread_done_cond;
+
+    MT_Vec3 *pixels;
+} MT_RenderThreadStation;
+
+typedef struct MT_RenderChunk
+{
+    MT_RenderSettings *settings;
+    unsigned int px_start;
+    unsigned int px_end;
+    unsigned int index;
+    int ready;
+    int terminate;
+
+    MT_RenderThreadStation *thread_station;
+    pthread_mutex_t wake_mutex;
+    pthread_mutex_t terminate_mutex;
+    pthread_cond_t wake_cond;
+} MT_RenderChunk;
+
+typedef struct MT_Renderer
+{
+    MT_RenderSettings settings;
+
+    pthread_t *threads;
+    MT_RenderChunk **render_chunks;
+
+    MT_RenderThreadStation thread_station;
+} MT_Renderer;
+
+static void mt__render_handle_tri(MT_Ray *ray, MT_Tri *tri, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+{
+    MT_RayHit ray_hit = mt__ray_hit_tri(ray, tri);
+    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    {
+        hit_info->hit = 1;
+        hit_info->pos = ray_hit.pos;
+        hit_info->normal = ray_hit.normal;
+        *t_lowest = ray_hit.t;
+
+        *hit_mat = *tri->mat;
+    }
+}
+
+static void mt__render_handle_mesh(MT_Ray *ray, MT_Mesh *mesh, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+{
+    for (int i = 0; i < mesh->tri_index; ++i)
+    {
+        mt__render_handle_tri(ray, mesh->tris[i], hit_info, hit_mat, t_lowest);
+    }
+}
+
+static void mt__render_handle_sphere(MT_Ray *ray, MT_Sphere *sphere, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+{
+    MT_RayHit ray_hit = mt__ray_hit_sphere(ray, sphere);
+    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    {
+        hit_info->hit = 1;
+        hit_info->pos = ray_hit.pos;
+        hit_info->normal = ray_hit.normal;
+        *t_lowest = ray_hit.t;
+
+        *hit_mat = *sphere->mat;
+    }
+}
+
+static void mt__render_chunk(void *data)
+{
+    MT_RenderChunk *rc = (MT_RenderChunk *)data;
+
+    MT_RenderSettings *rs = rc->settings;
+
+    if (!rs->camera || !rs->world)
+    {
+        return;
+    }
+
+    float viewport_height = 1.0f;
+    float viewport_width = viewport_height * ((float)rs->width / rs->height);
+
+    float pixel_delta_u = viewport_width / rs->width;
+    float pixel_delta_v = viewport_height / rs->height;
+
+    MT_Vec3 viewport_top_left = vec3_sub(rs->camera->position, (MT_Vec3){viewport_width / 2.0f, viewport_height / 2.0f, rs->camera->fov});
+    MT_Vec3 pixel00_pos = vec3_add(viewport_top_left, (MT_Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
+
+    for (int i = rc->px_start; i < rc->px_end; ++i)
+    {
+        int x = i % rs->width;
+        int y = i / rs->width;
+
+        MT_Vec3 pixel_center = vec3_add(pixel00_pos, (MT_Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
+
+        MT_Mat4x4 translate = mat4x4_create_translation(vec3_mult_v(rs->camera->position, -1));
+        MT_Mat4x4 rotation = mat4x4_create_rotation(rs->camera->rotation);
+        MT_Mat4x4 transform = mat4x4_mult(rotation, translate);
+
+        MT_Vec3 ray_direction = mat4x4_mult_vec3(transform, pixel_center);
+
+        MT_Vec3 render_color = (MT_Vec3){0, 0, 0};
+
+        for (int i = 0; i < rs->samples; ++i)
+        {
+            MT_Ray ray;
+            ray.origin = rs->camera->position;
+            ray.direction = ray_direction;
+            ray.color = (MT_Vec3){1, 1, 1};
+            ray.radiance = (MT_Vec3){0, 0, 0};
+
+            for (int j = 0; j < rs->bounces; ++j)
+            {
+                float t_lowest = FLT_MAX;
+
+                MT_RayHit hit_info;
+                hit_info.hit = 0;
+                MT_Material hit_mat;
+
+                for (int k = 0; k < rs->world->object_index; ++k)
+                {
+                    switch (rs->world->objects_track[k])
+                    {
+                    case OBJECT_TRI:
+                        mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        break;
+                    case OBJECT_MESH:
+                        mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        break;
+                    case OBJECT_SPHERE:
+                        mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        break;
+                    }
+                }
+
+                if (hit_info.hit)
+                {
+                    mt__ray_bounce(&ray, &hit_info, &hit_mat);
+                }
+                else
+                {
+                    MT_Vec3 unit_direction = vec3_mult_v(vec3_normalize(ray.direction), -1.0f);
+                    float a = 0.5f * (unit_direction.y + 1.0f);
+                    MT_Vec3 color = vec3_add((MT_Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (MT_Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
+                    ray.radiance = vec3_add(ray.radiance, vec3_mult(ray.color, color));
+                    break;
+                }
+            }
+
+            render_color = vec3_add(render_color, ray.radiance);
+        }
+
+        render_color = vec3_div_v(render_color, (float)rs->samples);
+
+        float gamma = 0.9f;
+
+        render_color.x = powf(render_color.x, 1.0f / gamma);
+        render_color.y = powf(render_color.y, 1.0f / gamma);
+        render_color.z = powf(render_color.z, 1.0f / gamma);
+
+        // clamp color
+        if (render_color.x > 1.0f)
+        {
+            render_color.x = 1.0f;
+        }
+        if (render_color.y > 1.0f)
+        {
+            render_color.y = 1.0f;
+        }
+        if (render_color.z > 1.0f)
+        {
+            render_color.z = 1.0f;
+        }
+
+        rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)] = render_color;
+
+        // display render progress
+        // if (i % 100 == 0 && rc->index == 5)
+        // {
+        //     printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
+        //     fflush(stdout);
+        // }
+    }
+}
+
+static void *mt__worker_thread(void *data)
+{
+    MT_RenderChunk *rc = (MT_RenderChunk *)data;
+
+    mt__random_thread_init(rc->index);
+
+    while (1)
+    {
+        pthread_mutex_lock(&rc->wake_mutex);
+        if (!rc->ready)
+        {
+            pthread_cond_wait(&rc->wake_cond, &rc->wake_mutex);
+
+            if (rc->terminate)
+            {
+                break;
+            }
+        }
+
+        rc->ready = 0;
+
+        pthread_mutex_unlock(&rc->wake_mutex);
+
+        mt__render_chunk(rc);
+
+        pthread_mutex_lock(&rc->thread_station->finished_mutex);
+        rc->thread_station->finished_count++;
+        if (rc->thread_station->finished_count == rc->thread_station->thread_count)
+        {
+            pthread_cond_signal(&rc->thread_station->thread_done_cond); // wake main
+        }
+        pthread_mutex_unlock(&rc->thread_station->finished_mutex);
+    }
+
+    return NULL;
+}
+
+MT_Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
+{
+    MT_Renderer *renderer = malloc(sizeof(MT_Renderer));
+    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
-    renderer->render_chunks = (RenderChunk **)malloc(sizeof(RenderChunk *) * thread_count);
+    renderer->render_chunks = (MT_RenderChunk **)malloc(sizeof(MT_RenderChunk *) * thread_count);
 
     renderer->thread_station.thread_count = thread_count;
 
-    renderer->thread_station.pixels = (Vec3 *)malloc(sizeof(Vec3) * width * height);
+    renderer->thread_station.pixels = (MT_Vec3 *)malloc(sizeof(MT_Vec3) * width * height);
 
     pthread_mutex_init(&renderer->thread_station.finished_mutex, NULL);
     pthread_cond_init(&renderer->thread_station.thread_done_cond, NULL);
@@ -1004,8 +1217,8 @@ Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int 
             px_end += offset;
         }
 
-        RenderChunk *rc = (RenderChunk *)malloc(sizeof(RenderChunk));
-        *rc = (RenderChunk){&renderer->settings, px_start, px_end, i, 0, 0};
+        MT_RenderChunk *rc = (MT_RenderChunk *)malloc(sizeof(MT_RenderChunk));
+        *rc = (MT_RenderChunk){&renderer->settings, px_start, px_end, i, 0, 0};
 
         rc->thread_station = &renderer->thread_station;
 
@@ -1014,32 +1227,32 @@ Renderer *renderer_create(unsigned int width, unsigned int height, unsigned int 
         pthread_cond_init(&rc->wake_cond, NULL);
 
         renderer->render_chunks[i] = rc;
-        pthread_create(&renderer->threads[i], NULL, worker_thread, rc);
+        pthread_create(&renderer->threads[i], NULL, mt__worker_thread, rc);
     }
 
     return renderer;
 }
 
-void renderer_set_world(Renderer *renderer, World *world)
+void renderer_set_world(MT_Renderer *renderer, MT_World *world)
 {
     renderer->settings.world = world;
 }
 
-void renderer_set_camera(Renderer *renderer, Cam *camera)
+void renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera)
 {
     renderer->settings.camera = camera;
 }
 
-void renderer_set_samples(Renderer *renderer, unsigned int samples)
+void renderer_set_samples(MT_Renderer *renderer, unsigned int samples)
 {
     renderer->settings.samples = samples;
 }
-void renderer_set_bounces(Renderer *renderer, unsigned int bounces)
+void renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces)
 {
     renderer->settings.bounces = bounces;
 }
 
-void renderer_delete(Renderer *renderer)
+void renderer_delete(MT_Renderer *renderer)
 {
     if (!renderer)
     {
@@ -1048,7 +1261,7 @@ void renderer_delete(Renderer *renderer)
 
     for (int i = 0; i < renderer->thread_station.thread_count; ++i)
     {
-        RenderChunk *rc = renderer->render_chunks[i];
+        MT_RenderChunk *rc = renderer->render_chunks[i];
 
         if (!rc)
         {
@@ -1093,197 +1306,27 @@ void renderer_delete(Renderer *renderer)
     free(renderer);
 }
 
-void *worker_thread(void *data)
+MT_Vec3 *renderer_get_pixels(MT_Renderer *renderer)
 {
-    RenderChunk *rc = (RenderChunk *)data;
-
-    random_thread_init(rc->index);
-
-    while (1)
-    {
-        pthread_mutex_lock(&rc->wake_mutex);
-        if (!rc->ready)
-        {
-            pthread_cond_wait(&rc->wake_cond, &rc->wake_mutex);
-
-            if (rc->terminate)
-            {
-                break;
-            }
-        }
-
-        rc->ready = 0;
-
-        pthread_mutex_unlock(&rc->wake_mutex);
-
-        render_chunk(rc);
-
-        pthread_mutex_lock(&rc->thread_station->finished_mutex);
-        rc->thread_station->finished_count++;
-        if (rc->thread_station->finished_count == rc->thread_station->thread_count)
-        {
-            pthread_cond_signal(&rc->thread_station->thread_done_cond); // wake main
-        }
-        pthread_mutex_unlock(&rc->thread_station->finished_mutex);
-    }
-
-    return NULL;
+    return renderer->thread_station.pixels;
 }
 
-void render_handle_tri(Ray3 *ray, TriObj *tri, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+MT_Vec3 renderer_get_pixel(MT_Renderer* renderer, int x, int y)
 {
-    Ray3Hit ray_hit = ray_hit_tri(ray, tri);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
-    {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
-
-        *hit_mat = *tri->mat;
-    }
+    int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
+    return renderer->thread_station.pixels[index];
 }
 
-void render_handle_mesh(Ray3 *ray, MeshObj *mesh, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
+int renderer_get_width(MT_Renderer *renderer)
 {
-    for (int i = 0; i < mesh->tri_index; ++i)
-    {
-        render_handle_tri(ray, mesh->tris[i], hit_info, hit_mat, t_lowest);
-    }
+    return renderer->settings.width;
+}
+int renderer_get_height(MT_Renderer *renderer)
+{
+    return renderer->settings.height;
 }
 
-void render_handle_sphere(Ray3 *ray, SphereObj *sphere, Ray3Hit *hit_info, Mat *hit_mat, float *t_lowest)
-{
-    Ray3Hit ray_hit = ray_hit_sphere(ray, sphere);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
-    {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
-
-        *hit_mat = *sphere->mat;
-    }
-}
-
-void render_chunk(void *data)
-{
-    RenderChunk *rc = (RenderChunk *)data;
-
-    RenderSettings *rs = rc->settings;
-
-    if (!rs->camera || !rs->world)
-    {
-        return;
-    }
-
-    float viewport_height = 1.0f;
-    float viewport_width = viewport_height * ((float)rs->width / rs->height);
-
-    float pixel_delta_u = viewport_width / rs->width;
-    float pixel_delta_v = viewport_height / rs->height;
-
-    Vec3 viewport_top_left = vec_sub(rs->camera->position, (Vec3){viewport_width / 2.0f, viewport_height / 2.0f, rs->camera->fov});
-    Vec3 pixel00_pos = vec_add(viewport_top_left, (Vec3){0.5 * pixel_delta_u, 0.5 * pixel_delta_v, 0});
-
-    for (int i = rc->px_start; i < rc->px_end; ++i)
-    {
-        int x = i % rs->width;
-        int y = i / rs->width;
-
-        Vec3 pixel_center = vec_add(pixel00_pos, (Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
-
-        Mat4x4 translate = mat_create_translation(vec_mult_v(rs->camera->position, -1));
-        Mat4x4 rotation = mat_create_rotation(rs->camera->rotation);
-        Mat4x4 transform = mat_4x4_mult(rotation, translate);
-
-        Vec3 ray_direction = mat_4x4_mult_vec3(transform, pixel_center);
-
-        Vec3 render_color = (Vec3){0, 0, 0};
-
-        for (int i = 0; i < rs->samples; ++i)
-        {
-            Ray3 ray;
-            ray.origin = rs->camera->position;
-            ray.direction = ray_direction;
-            ray.color = (Vec3){1, 1, 1};
-            ray.radiance = (Vec3){0, 0, 0};
-
-            for (int j = 0; j < rs->bounces; ++j)
-            {
-                float t_lowest = FLT_MAX;
-
-                Ray3Hit hit_info;
-                hit_info.hit = 0;
-                Mat hit_mat;
-
-                for (int k = 0; k < rs->world->object_index; ++k)
-                {
-                    switch (rs->world->objects_track[k])
-                    {
-                    case OBJECT_TRI:
-                        render_handle_tri(&ray, (TriObj *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                        break;
-                    case OBJECT_MESH:
-                        render_handle_mesh(&ray, (MeshObj *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                        break;
-                    case OBJECT_SPHERE:
-                        render_handle_sphere(&ray, (SphereObj *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
-                        break;
-                    }
-                }
-
-                if (hit_info.hit)
-                {
-                    ray_bounce(&ray, &hit_info, &hit_mat);
-                }
-                else
-                {
-                    Vec3 unit_direction = vec_mult_v(vec_normalize(ray.direction), -1.0f);
-                    float a = 0.5f * (unit_direction.y + 1.0f);
-                    Vec3 color = vec_add((Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
-                    ray.radiance = vec_add(ray.radiance, vec_mult(ray.color, color));
-                    break;
-                }
-            }
-
-            render_color = vec_add(render_color, ray.radiance);
-        }
-
-        render_color = vec_div_v(render_color, (float)rs->samples);
-
-        float gamma = 0.9f;
-
-        render_color.x = powf(render_color.x, 1.0f / gamma);
-        render_color.y = powf(render_color.y, 1.0f / gamma);
-        render_color.z = powf(render_color.z, 1.0f / gamma);
-
-        // clamp color
-        if (render_color.x > 1.0f)
-        {
-            render_color.x = 1.0f;
-        }
-        if (render_color.y > 1.0f)
-        {
-            render_color.y = 1.0f;
-        }
-        if (render_color.z > 1.0f)
-        {
-            render_color.z = 1.0f;
-        }
-
-        rc->thread_station->pixels[index_2d_to_1d(x, y, rc->settings->width)] = render_color;
-
-        // display render progress
-        // if (i % 100 == 0 && rc->index == 5)
-        // {
-        //     printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
-        //     fflush(stdout);
-        // }
-    }
-}
-
-void render(Renderer *renderer)
+void render(MT_Renderer *renderer)
 {
     pthread_mutex_lock(&renderer->thread_station.finished_mutex);
     renderer->thread_station.finished_count = 0;
@@ -1291,7 +1334,7 @@ void render(Renderer *renderer)
 
     for (int i = 0; i < renderer->thread_station.thread_count; ++i)
     {
-        RenderChunk *rc = renderer->render_chunks[i];
+        MT_RenderChunk *rc = renderer->render_chunks[i];
         pthread_mutex_lock(&rc->wake_mutex);
         rc->ready = 1;
         pthread_cond_signal(&rc->wake_cond);
