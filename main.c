@@ -3,52 +3,56 @@
 
 int main(void)
 {
-    int windowScale = 5;
+    int windowScale = 6;
 
-    MT_World *world = world_create(100);
-    MT_Camera *camera = camera_create();
-    camera->position.x = 0;
-    camera->position.y = -1.3f;
-    camera->position.z = 4.0f;
-    camera->rotation.x = 0;
-    camera->rotation.y = 0;
+    MT_World *world = mt_world_create(100);
+    MT_Camera *camera = mt_camera_create();
+    MT_Renderer *renderer = mt_renderer_create(120, 100, 16);
+
+    mt_renderer_set_world(renderer, world);
+    mt_renderer_set_camera(renderer, camera);
+    mt_renderer_set_samples(renderer, 5);
+    mt_renderer_set_bounces(renderer, 8);
+
+    camera->position.x = -5.884;
+    camera->position.y = -4.0f;
+    camera->position.z = -5.246f;
+    camera->rotation.x = 0.4;
+    camera->rotation.y = -2.1;
     camera->rotation.z = 0;
     camera->fov = 1.0f;
-    MT_Renderer *renderer = renderer_create(150, 120, 16);
 
-    renderer_set_world(renderer, world);
-    renderer_set_camera(renderer, camera);
-    renderer_set_samples(renderer, 20);
-    renderer_set_bounces(renderer, 6);
-
-    MT_Material *mat_diffuse = material_create();
-    MT_Material *mat_diffuse_red = material_create();
+    MT_Material *mat_diffuse = mt_material_create();
+    MT_Material *mat_diffuse_red = mt_material_create();
     mat_diffuse_red->color = (MT_Vec3){1.0f, 0.2f, 0.3f};
-    MT_Material *mat_glass = material_create();
+    MT_Material *mat_glass = mt_material_create();
     mat_glass->is_transparent = 1;
     mat_glass->ior = 1.0f;
+    MT_Material *mat_glossy = mt_material_create();
+    mat_glossy->roughness = 0.1f;
+    mat_glossy->color = (MT_Vec3){1.0f, 0.5f, 0.8f};
+    MT_Material *mat_emission = mt_material_create();
+    mat_emission->emission_strength = 1.0f;
+    mat_emission->emission = (MT_Vec3){1.0f, 0.0f, 0.0f};
 
-    MT_Mesh *floor = mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse);
-    mesh_transform(floor, (MT_Vec3){0, 0, -20}, (MT_Vec3){0, 2, 0}, (MT_Vec3){20, 1, 20});
-    mesh_transform(floor, (MT_Vec3){-10, 0, 20}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1, 1, 1});
-    mesh_transform(floor, (MT_Vec3){10, 0, 0}, (MT_Vec3){0, -2, 0}, (MT_Vec3){1, 1, 1});
-    world_add_object(world, floor, OBJECT_MESH);
+    MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 1, 20}, mat_glossy);
+    mt_world_add_object(world, floor, MT_OBJECT_MESH);
 
-    MT_Sphere *ball = sphere_create((MT_Vec3){0, -1, -6}, 1.0f, mat_diffuse_red);
-    world_add_object(world, ball, OBJECT_SPHERE);
+    MT_Sphere *sphere = mt_sphere_create((MT_Vec3){0, -1, -4}, 1.0f, mat_diffuse);
+    mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
 
-    // MeshObj *cube = mesh_create_cube((Vec3){0, -1, 0}, (Vec3){0, 0, 0}, (Vec3){2, 2, 2}, mat_glass);
-    // world_add_object(world, cube, OBJECT_MESH);
+    MT_Mesh *stl_mesh = mt_mesh_create_from_stl("monkey.stl", (MT_Vec3){0, -2, 0}, (MT_Vec3){3.14159 / 2.0f, 0, 0}, (MT_Vec3){1.5, 1.5, 1.5}, mat_glossy);
+    mt_world_add_object(world, stl_mesh, MT_OBJECT_MESH);
 
-    Color *color = (Color *)malloc(sizeof(Color) * renderer_get_width(renderer) * renderer_get_height(renderer));
-    InitWindow(renderer_get_width(renderer) * windowScale, renderer_get_height(renderer) * windowScale, "minitracer");
+    Color *color = (Color *)malloc(sizeof(Color) * mt_renderer_get_width(renderer) * mt_renderer_get_height(renderer));
+    InitWindow(mt_renderer_get_width(renderer) * windowScale, mt_renderer_get_height(renderer) * windowScale, "minitracer");
     SetWindowPosition(2500, 200);
-    RenderTexture2D target = LoadRenderTexture(renderer_get_width(renderer), renderer_get_height(renderer));
+    RenderTexture2D target = LoadRenderTexture(mt_renderer_get_width(renderer), mt_renderer_get_height(renderer));
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
     {
-        render(renderer);
+        mt_render(renderer);
         if (IsKeyDown(KEY_SPACE))
         {
             camera->position.y -= 0.1f;
@@ -122,15 +126,15 @@ int main(void)
         BeginTextureMode(target);
         ClearBackground(BLACK);
 
-        for (int y = 0; y < renderer_get_height(renderer); ++y)
+        for (int y = 0; y < mt_renderer_get_height(renderer); ++y)
         {
-            for (int x = 0; x < renderer_get_width(renderer); ++x)
+            for (int x = 0; x < mt_renderer_get_width(renderer); ++x)
             {
-                MT_Vec3 pixel = renderer_get_pixel(renderer, x, y);
-                color[y * (int)renderer_get_width(renderer) + x] = (Color){pixel.x * 255.0f,
-                                       pixel.y * 255.0f,
-                                       pixel.z * 255.0f,
-                                       255.0f};
+                MT_Vec3 pixel = mt_renderer_get_pixel(renderer, x, y);
+                color[y * (int)mt_renderer_get_width(renderer) + x] = (Color){pixel.x * 255.0f,
+                                                                              pixel.y * 255.0f,
+                                                                              pixel.z * 255.0f,
+                                                                              255.0f};
             }
         }
         UpdateTexture(target.texture, color);
@@ -138,17 +142,17 @@ int main(void)
 
         BeginDrawing();
         ClearBackground(BLACK);
-        Rectangle src = {0, 0, (float)renderer_get_width(renderer), (float)renderer_get_height(renderer)};
-        Rectangle dest = {0, 0, (float)renderer_get_width(renderer) * windowScale, (float)renderer_get_height(renderer) * windowScale};
+        Rectangle src = {0, 0, (float)mt_renderer_get_width(renderer), (float)mt_renderer_get_height(renderer)};
+        Rectangle dest = {0, 0, (float)mt_renderer_get_width(renderer) * windowScale, (float)mt_renderer_get_height(renderer) * windowScale};
         DrawTexturePro(target.texture, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
         EndDrawing();
     }
 
     CloseWindow();
 
-    renderer_delete(renderer);
-    world_delete(world);
-    camera_delete(camera);
+    mt_renderer_delete(renderer);
+    mt_world_delete(world);
+    mt_camera_delete(camera);
     free(color);
 
     return 0;
