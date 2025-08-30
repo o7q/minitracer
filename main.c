@@ -11,38 +11,37 @@ int main(void)
 
     mt_renderer_set_world(renderer, world);
     mt_renderer_set_camera(renderer, camera);
-    mt_renderer_set_samples(renderer, 5);
-    mt_renderer_set_bounces(renderer, 8);
+    mt_renderer_set_samples(renderer, 10);
+    mt_renderer_set_bounces(renderer, 1);
 
-    camera->position.x = -5.884;
-    camera->position.y = -4.0f;
-    camera->position.z = -5.246f;
-    camera->rotation.x = 0.4;
-    camera->rotation.y = -2.1;
+    camera->position.x = 0;
+    camera->position.y = -1.0f;
+    camera->position.z = 1.0f;
+    camera->rotation.x = 0;
+    camera->rotation.y = 0;
     camera->rotation.z = 0;
     camera->fov = 1.0f;
 
     MT_Material *mat_diffuse = mt_material_create();
-    MT_Material *mat_diffuse_red = mt_material_create();
-    mat_diffuse_red->color = (MT_Vec3){1.0f, 0.2f, 0.3f};
+    MT_Material *mat_glossy = mt_material_create();
+    mat_glossy->roughness = 0.25f;
+    mat_glossy->color = (MT_Vec3){1.0f, 0.9f, 1.0f};
+    MT_Material *mat_light = mt_material_create();
+    mat_light->emission_strength = 1.0f;
     MT_Material *mat_glass = mt_material_create();
     mat_glass->is_transparent = 1;
-    mat_glass->ior = 1.0f;
-    MT_Material *mat_glossy = mt_material_create();
-    mat_glossy->roughness = 0.1f;
-    mat_glossy->color = (MT_Vec3){1.0f, 0.5f, 0.8f};
-    MT_Material *mat_emission = mt_material_create();
-    mat_emission->emission_strength = 1.0f;
-    mat_emission->emission = (MT_Vec3){1.0f, 0.0f, 0.0f};
 
-    MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 1, 20}, mat_glossy);
+    MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 1, 20}, mat_diffuse);
     mt_world_add_object(world, floor, MT_OBJECT_MESH);
 
-    MT_Sphere *sphere = mt_sphere_create((MT_Vec3){0, -1, -4}, 1.0f, mat_diffuse);
-    mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
+    // MT_Mesh *glass_cube = mt_mesh_create_cube((MT_Vec3){0, -1.01, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){2, 2, 2}, mat_glass);
+    // mt_world_add_object(world, glass_cube, MT_OBJECT_MESH);
 
-    MT_Mesh *stl_mesh = mt_mesh_create_from_stl("monkey.stl", (MT_Vec3){0, -2, 0}, (MT_Vec3){3.14159 / 2.0f, 0, 0}, (MT_Vec3){1.5, 1.5, 1.5}, mat_glossy);
-    mt_world_add_object(world, stl_mesh, MT_OBJECT_MESH);
+    // MT_Mesh *m_mesh = mt_mesh_create_from_stl("m.stl", (MT_Vec3){0, -2, -5}, (MT_Vec3){MT_PI / 2, 0, 0}, (MT_Vec3){4, 4, 4}, mat_light);
+    // mt_world_add_object(world, m_mesh, MT_OBJECT_MESH);
+
+    // MT_Sphere* sphere = mt_sphere_create((MT_Vec3){0, -1, -3}, 1.0f, mat_glossy);
+    // mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
 
     Color *color = (Color *)malloc(sizeof(Color) * mt_renderer_get_width(renderer) * mt_renderer_get_height(renderer));
     InitWindow(mt_renderer_get_width(renderer) * windowScale, mt_renderer_get_height(renderer) * windowScale, "minitracer");
