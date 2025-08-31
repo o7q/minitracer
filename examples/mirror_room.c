@@ -4,57 +4,47 @@
 int main(void)
 {
     int windowScale = 6;
-    int renderScale = 1;
 
     MT_World *world = mt_world_create(100);
     MT_Camera *camera = mt_camera_create();
-    MT_Renderer *renderer = mt_renderer_create(120 * renderScale, 100 * renderScale, 16);
+    MT_Renderer *renderer = mt_renderer_create(120, 100, 16);
 
     mt_renderer_set_world(renderer, world);
     mt_renderer_set_camera(renderer, camera);
-    mt_renderer_set_samples(renderer, 20);
-    mt_renderer_set_bounces(renderer, 16);
+    mt_renderer_set_samples(renderer, 1);
+    mt_renderer_set_bounces(renderer, 20);
 
-    camera->position.x = 0;
-    camera->position.y = -2.7;
-    camera->position.z = 6.4;
-    camera->rotation.x = 0.05;
-    camera->rotation.y = 0;
+    camera->position.x = -1.209;
+    camera->position.y = -1.0f;
+    camera->position.z = 0.685f;
+    camera->rotation.x = 0.5;
+    camera->rotation.y = -0.65;
     camera->rotation.z = 0;
-    camera->fov = 0.97f;
+    camera->fov = 0.5f;
 
     MT_Material *mat_diffuse = mt_material_create();
-    MT_Material *mat_diffuse_red = mt_material_create();
-    mat_diffuse_red->color = (MT_Vec3){255 / 255.0f, 66 / 255.0f, 33 / 255.0f};
-    MT_Material *mat_diffuse_green = mt_material_create();
-    mat_diffuse_green->color = (MT_Vec3){77 / 255.0f, 219 / 255.0f, 55 / 255.0f};
     MT_Material *mat_glossy = mt_material_create();
-    mat_glossy->roughness = 0.1f;
+    mat_glossy->roughness = 0.005f;
+    mat_glossy->color = (MT_Vec3){0.95f, 0.85f, 0.85f};
     MT_Material *mat_light = mt_material_create();
-    mat_light->emission_strength = 9.0f;
-    mat_light->color = (MT_Vec3){255 / 255.0f, 241 / 255.0f, 201 / 255.0f};
+    mat_light->emission_strength = 1.0f;
     MT_Material *mat_glass = mt_material_create();
-    mat_glass->is_refractive = 1;
-    mat_glass->ior = 1.5f;
+    mat_glass->is_transparent = 1;
 
-    // room
     MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 1, 20}, mat_diffuse);
     mt_world_add_object(world, floor, MT_OBJECT_MESH);
-    // MT_Mesh *red_wall = mt_mesh_create_plane((MT_Vec3){-2.49, -2.49, 0}, (MT_Vec3){0, 0, -MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_red);
-    // mt_world_add_object(world, red_wall, MT_OBJECT_MESH);
-    // MT_Mesh *green_wall = mt_mesh_create_plane((MT_Vec3){2.49, -2.49, 0}, (MT_Vec3){0, 0, MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_green);
-    // mt_world_add_object(world, green_wall, MT_OBJECT_MESH);
-    // MT_Mesh *back_wall = mt_mesh_create_plane((MT_Vec3){0, -2.49, -2.49}, (MT_Vec3){MT_PI / 2.0f, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
-    // mt_world_add_object(world, back_wall, MT_OBJECT_MESH);
-    // MT_Mesh *ceil = mt_mesh_create_plane((MT_Vec3){0, -4.99, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
-    // mt_world_add_object(world, ceil, MT_OBJECT_MESH);
-    MT_Mesh *light = mt_mesh_create_plane((MT_Vec3){0, -4.9, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1.5, 1, 1.5}, mat_light);
-    mt_world_add_object(world, light, MT_OBJECT_MESH);
     
-    MT_Sphere *sphere = mt_sphere_create((MT_Vec3){-1, -1, -1}, 1.0f, mat_glass);
+    MT_Mesh *glass_cube = mt_mesh_create_cube((MT_Vec3){0, -1.01, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 2, 2}, mat_glossy);
+    mt_world_add_object(world, glass_cube, MT_OBJECT_MESH);
+    
+    MT_Mesh *m_mesh = mt_mesh_create_from_stl("m.stl", (MT_Vec3){0, -2, -5}, (MT_Vec3){MT_PI / 2, 0, 0}, (MT_Vec3){4, 4, 4}, mat_glossy);
+    mt_world_add_object(world, m_mesh, MT_OBJECT_MESH);
+    
+    MT_Sphere* sphere = mt_sphere_create((MT_Vec3){0, -1.01, -3}, 1.0f, mat_diffuse);
     mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
-    MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){2, -1.05, 1}, (MT_Vec3){0, 1, 0}, (MT_Vec3){2, 2, 2}, mat_diffuse_red);
-    mt_world_add_object(world, cube, MT_OBJECT_MESH);
+    
+    MT_Mesh *light = mt_mesh_create_plane((MT_Vec3){0, -0.5, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){0.5, 1, 0.5}, mat_light);
+    mt_world_add_object(world, light, MT_OBJECT_MESH);
 
     Color *color = (Color *)malloc(sizeof(Color) * mt_renderer_get_width(renderer) * mt_renderer_get_height(renderer));
     InitWindow(mt_renderer_get_width(renderer) * windowScale, mt_renderer_get_height(renderer) * windowScale, "minitracer");

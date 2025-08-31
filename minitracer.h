@@ -31,8 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <float.h>
 #include <limits.h>
+#include <float.h>
 #include <pthread.h>
 
 ///////////////////////////////
@@ -59,7 +59,7 @@ MT_Vec3 mt_vec3_cross(MT_Vec3 a, MT_Vec3 b);
 float mt_vec3_length_squared(MT_Vec3 a);
 float mt_vec3_length(MT_Vec3 a);
 float mt_vec3_distance(MT_Vec3 a, MT_Vec3 b);
-float mt_vec3_cosine_similarity(MT_Vec3 a, MT_Vec3 b);
+float mt_vec3_angle(MT_Vec3 a, MT_Vec3 b);
 MT_Vec3 mt_vec3_normalize(MT_Vec3 a);
 MT_Vec3 mt_vec3_lerp(MT_Vec3 a, MT_Vec3 b, float t);
 MT_Vec3 mt_vec3_negate(MT_Vec3 a);
@@ -97,7 +97,7 @@ typedef struct MT_Material
     MT_Vec3 emission;
     float emission_strength;
     float roughness;
-    int is_transparent;
+    int is_refractive;
     float ior;
 } MT_Material;
 
@@ -316,7 +316,7 @@ float mt_vec3_distance(MT_Vec3 a, MT_Vec3 b)
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-float mt_vec3_cosine_similarity(MT_Vec3 a, MT_Vec3 b)
+float mt_vec3_angle(MT_Vec3 a, MT_Vec3 b)
 {
     float len_a = mt_vec3_length(a);
     float len_b = mt_vec3_length(b);
@@ -325,7 +325,7 @@ float mt_vec3_cosine_similarity(MT_Vec3 a, MT_Vec3 b)
         return 0.0f;
     }
 
-    return mt_vec3_dot(a, b) / (len_a * len_b);
+    return acosf(mt_vec3_dot(a, b) / (len_a * len_b));
 }
 
 MT_Vec3 mt_vec3_normalize(MT_Vec3 a)
@@ -483,7 +483,7 @@ MT_Material *mt_material_create()
     mat->emission = (MT_Vec3){1.0f, 1.0f, 1.0f};
     mat->emission_strength = 0.0f;
     mat->roughness = 1.0f;
-    mat->is_transparent = 0;
+    mat->is_refractive = 0;
     mat->ior = 1.0f;
     return mat;
 }
@@ -708,13 +708,15 @@ void mt_mesh_rotate(MT_Mesh *mesh, MT_Vec3 rotation)
         tri->p[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p[1]);
         tri->p[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p[2]);
 
-        tri->p_n[0] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[0]);
-        tri->p_n[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[1]);
-        tri->p_n[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[2]);
-
         tri->p[0] = mt_vec3_add(tri->p[0], mesh->origin_offset);
         tri->p[1] = mt_vec3_add(tri->p[1], mesh->origin_offset);
         tri->p[2] = mt_vec3_add(tri->p[2], mesh->origin_offset);
+
+        // fix normals
+        tri->p_n[0] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[0]);
+        tri->p_n[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[1]);
+        tri->p_n[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[2]);
+        tri->face_normal = mt_mat4x4_mult_vec3(rotation_mat, tri->face_normal);
     }
 }
 
@@ -754,11 +756,6 @@ void mt_mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_
         tri->p[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p[1]);
         tri->p[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p[2]);
 
-        // fix normals
-        tri->p_n[0] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[0]);
-        tri->p_n[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[1]);
-        tri->p_n[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[2]);
-
         tri->p[0] = mt_mat4x4_mult_vec3(translate_mat, tri->p[0]);
         tri->p[1] = mt_mat4x4_mult_vec3(translate_mat, tri->p[1]);
         tri->p[2] = mt_mat4x4_mult_vec3(translate_mat, tri->p[2]);
@@ -766,6 +763,12 @@ void mt_mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_
         tri->p[0] = mt_vec3_add(tri->p[0], mesh->origin_offset);
         tri->p[1] = mt_vec3_add(tri->p[1], mesh->origin_offset);
         tri->p[2] = mt_vec3_add(tri->p[2], mesh->origin_offset);
+
+        // fix normals
+        tri->p_n[0] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[0]);
+        tri->p_n[1] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[1]);
+        tri->p_n[2] = mt_mat4x4_mult_vec3(rotation_mat, tri->p_n[2]);
+        tri->face_normal = mt_mat4x4_mult_vec3(rotation_mat, tri->face_normal);
     }
 
     mesh->origin_offset = mt_vec3_add(mesh->origin_offset, translation);
@@ -817,15 +820,15 @@ typedef struct MT_Ray
 {
     MT_Vec3 origin;
     MT_Vec3 direction;
-    MT_Vec3 radiance;
-    MT_Vec3 color;
+    MT_Vec3 throughput;
+    MT_Vec3 accumulated_radiance;
 } MT_Ray;
 
 typedef struct MT_RayHit
 {
+    int hit;
     MT_Vec3 pos;
     MT_Vec3 normal;
-    int hit;
     float t;
     int is_backface;
 } MT_RayHit;
@@ -839,76 +842,64 @@ static MT_Vec3 mt__ray_at(const MT_Ray *ray, float t)
 }
 
 // Möller–Trumbore intersection
-// thanks to Sebastian Lague for the implementation: https://youtu.be/Qz0KTGYJtUk?t=1418
-static MT_RayHit mt__ray_hit_tri(const MT_Ray *ray, const MT_Tri *tri, int check_backfaces)
+// source: https://www.youtube.com/watch?v=fK1RPmF_zjQ
+static MT_RayHit mt__ray_hit_tri(const MT_Ray *ray, const MT_Tri *tri)
 {
-    MT_RayHit hit;
-    hit.hit = 0;
+    MT_RayHit hit = {0};
 
     MT_Vec3 edge1 = mt_vec3_sub(tri->p[1], tri->p[0]);
     MT_Vec3 edge2 = mt_vec3_sub(tri->p[2], tri->p[0]);
-    MT_Vec3 tri_normal = mt_vec3_cross(edge1, edge2);
-    MT_Vec3 ray_offset = mt_vec3_sub(ray->origin, tri->p[0]);
-    MT_Vec3 ray_offset_perp = mt_vec3_cross(ray_offset, ray->direction);
 
-    float det = mt_vec3_dot(ray->direction, tri_normal);
-    float invdet = 1.0f / det;
+    MT_Vec3 cross_direction_edge2 = mt_vec3_cross(ray->direction, edge2);
 
-    float dst = -mt_vec3_dot(ray_offset, tri_normal) * invdet;
+    float det = mt_vec3_dot(edge1, cross_direction_edge2);
+    if (det > -MT_EPSILON && det < MT_EPSILON)
+    {
+        return hit;
+    }
+    float inv_det = 1.0f / det;
 
-    float u = -mt_vec3_dot(edge2, ray_offset_perp) * invdet;
-    float v = mt_vec3_dot(edge1, ray_offset_perp) * invdet;
-    float w = 1.0f - u - v;
+    MT_Vec3 orig_minus_vert0 = mt_vec3_sub(ray->origin, tri->p[0]);
 
-    int valid = check_backfaces ? fabs(det) >= MT_EPSILON : det <= -MT_EPSILON;
-    hit.hit = valid && dst > 0 && u >= 0 && v >= 0 && w >= 0;
-    hit.pos = mt__ray_at(ray, dst);
-    hit.normal = mt_vec3_normalize((MT_Vec3){tri->p_n[0].x * w + tri->p_n[1].x * u + tri->p_n[2].x * v,
-                                             tri->p_n[0].y * w + tri->p_n[1].y * u + tri->p_n[2].y * v,
-                                             tri->p_n[0].z * w + tri->p_n[1].z * u + tri->p_n[2].z * v});
-    hit.t = dst;
-    hit.is_backface = det > 0;
+    // calculate u coordinate and test bounds
+    float baryU = mt_vec3_dot(orig_minus_vert0, cross_direction_edge2) * inv_det;
+    if (baryU < 0.0f || baryU > 1.0f)
+    {
+        return hit;
+    }
 
-    hit.normal = mt_vec3_mult_v(hit.normal, -mt__sign(det));
+    MT_Vec3 cross_originMinusVert0_edge1 = mt_vec3_cross(orig_minus_vert0, edge1);
+
+    float baryV = mt_vec3_dot(ray->direction, cross_originMinusVert0_edge1) * inv_det;
+    if (baryV < 0.0f || baryU + baryV > 1.0f)
+    {
+        return hit;
+    }
+
+    float t = mt_vec3_dot(edge2, cross_originMinusVert0_edge1) * inv_det;
+
+    if (t < 0.0f)
+    {
+        return hit;
+    }
+
+    hit.hit = 1;
+    hit.pos = mt__ray_at(ray, t);
+    hit.normal = tri->face_normal;
+    hit.t = t;
+    hit.is_backface = (det < 0.0f);
+
+    if (hit.is_backface)
+    {
+        hit.normal = mt_vec3_negate(hit.normal);
+    }
 
     return hit;
-
-    // MT_RayHit hit;
-    // hit.hit = 0;
-
-    // MT_Vec3 edge1 = mt_vec3_sub(tri->p[1], tri->p[0]);
-    // MT_Vec3 edge2 = mt_vec3_sub(tri->p[2], tri->p[0]);
-    // MT_Vec3 tri_normal = mt_vec3_cross(edge1, edge2);
-    // MT_Vec3 ray_offset = mt_vec3_sub(ray->origin, tri->p[0]);
-    // MT_Vec3 ray_offset_perp = mt_vec3_cross(ray_offset, ray->direction);
-
-    // float det = mt_vec3_dot(ray->direction, tri_normal);
-    // float invdet = 1.0f / det;
-
-    // float dst = -mt_vec3_dot(ray_offset, tri_normal) * invdet;
-
-    // float u = -mt_vec3_dot(edge2, ray_offset_perp) * invdet;
-    // float v = mt_vec3_dot(edge1, ray_offset_perp) * invdet;
-    // float w = 1.0f - u - v;
-
-    // int valid = check_backfaces ? fabs(det) >= MT_EPSILON : det <= -MT_EPSILON;
-    // hit.hit = valid && dst > 0 && u >= 0 && v >= 0 && w >= 0;
-    // hit.pos = mt__ray_at(ray, dst);
-    // hit.normal = mt_vec3_normalize((MT_Vec3){tri->p_n[0].x * w + tri->p_n[1].x * u + tri->p_n[2].x * v,
-    //                                          tri->p_n[0].y * w + tri->p_n[1].y * u + tri->p_n[2].y * v,
-    //                                          tri->p_n[0].z * w + tri->p_n[1].z * u + tri->p_n[2].z * v});
-    // hit.t = dst;
-    // hit.is_backface = det > 0;
-
-    // hit.normal = mt_vec3_mult_v(hit.normal, -mt__sign(det));
-
-    // return hit;
 }
 
 static MT_RayHit mt__ray_hit_sphere(const MT_Ray *ray, const MT_Sphere *sphere)
 {
-    MT_RayHit hit;
-    hit.hit = 0;
+    MT_RayHit hit = {0};
 
     MT_Vec3 oc = mt_vec3_sub(sphere->position, ray->origin);
     float a = mt_vec3_length_squared(ray->direction);
@@ -930,43 +921,89 @@ static MT_RayHit mt__ray_hit_sphere(const MT_Ray *ray, const MT_Sphere *sphere)
     return hit;
 }
 
-static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
+static void mt__ray_refract(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
 {
-    // apply color
-    ray->color = mt_vec3_mult(ray->color, mat->color);
+    float ior_air = 1.0f;
+    float ior_mat = mat->ior;
+    float n1, n2;
 
-    MT_Vec3 emittedLight = mt_vec3_mult_v(mat->emission, mat->emission_strength);
-    ray->radiance = mt_vec3_add(ray->radiance, mt_vec3_mult(emittedLight, ray->color));
-
-    if (mat->is_transparent)
+    if (!hit->is_backface)
     {
-        // MT_Vec3 dir_n = mt_vec3_normalize(ray->direction);
-        // ray->origin = hit->pos;
-
-        if (hit->is_backface)
-        {
-            ray->radiance = mt_vec3_add(ray->radiance, (MT_Vec3){1, 0, 0});
-        }
-
-        // float ior = 1.5f;
-        // ray->direction = mt_vec3_lerp(ray->direction, mt_vec3_negate(hit->normal), 0.2f);
+        n1 = ior_air;
+        n2 = ior_mat;
     }
     else
     {
-        // reflective bounce
+        n1 = ior_mat;
+        n2 = ior_air;
+    }
+
+    hit->normal = mt_vec3_normalize(hit->normal);
+    ray->direction = mt_vec3_normalize(ray->direction);
+
+    float eta = n1 / n2;
+    float cos_i = -mt_vec3_dot(hit->normal, ray->direction);    // incident cos
+    float cos_t_sq = 1.0f - eta * eta * (1.0f - cos_i * cos_i); // transmittance cos squared
+
+    // apply color
+    ray->throughput = mt_vec3_mult(ray->throughput, mat->color);
+
+    MT_Vec3 mat_emission = mt_vec3_mult_v(mat->emission, mat->emission_strength);
+    ray->accumulated_radiance = mt_vec3_add(ray->accumulated_radiance, mt_vec3_mult(ray->throughput, mat_emission));
+
+    if (cos_t_sq > 0.0f) // ray transmitted
+    {
+        float cos_t = sqrtf(cos_t_sq);
+
+        // snell's law
+        MT_Vec3 refracted = mt_vec3_add(
+            mt_vec3_mult_v(ray->direction, eta),
+            mt_vec3_mult_v(hit->normal, eta * cos_i - cos_t));
+
+        ray->direction = mt_vec3_normalize(refracted);
+    }
+    else
+    {
         MT_Vec3 i_n = mt_vec3_normalize(ray->direction);
         float d = mt_vec3_dot(i_n, hit->normal);
         ray->origin = hit->pos;
         ray->direction = mt_vec3_sub(i_n, mt_vec3_mult_v(hit->normal, 2.0f * d));
-
-        // scatter from roughness
-        ray->direction = mt_vec3_lerp(ray->direction, mt__random_hemi_normal_distribution(hit->normal), mat->roughness);
     }
+    ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(ray->direction, MT_EPSILON * 10.0f));
+}
+
+static void mt__ray_reflect(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
+{
+    // apply color
+    ray->throughput = mt_vec3_mult(ray->throughput, mat->color);
+
+    MT_Vec3 mat_emission = mt_vec3_mult_v(mat->emission, mat->emission_strength);
+    ray->accumulated_radiance = mt_vec3_add(ray->accumulated_radiance, mt_vec3_mult(ray->throughput, mat_emission));
+
+    MT_Vec3 i_n = mt_vec3_normalize(ray->direction);
+    float d = mt_vec3_dot(i_n, hit->normal);
+    ray->origin = hit->pos;
+    ray->direction = mt_vec3_sub(i_n, mt_vec3_mult_v(hit->normal, 2.0f * d));
+
+    // scatter from roughness
+    ray->direction = mt_vec3_lerp(ray->direction, mt__random_hemi_normal_distribution(hit->normal), mat->roughness);
 
     // fix self intersection
-    ray->origin.x = ray->origin.x + mt__sign(ray->direction.x) * MT_EPSILON;
-    ray->origin.y = ray->origin.y + mt__sign(ray->direction.y) * MT_EPSILON;
-    ray->origin.z = ray->origin.z + mt__sign(ray->direction.z) * MT_EPSILON;
+    ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(hit->normal, MT_EPSILON * 10.0f));
+}
+
+static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
+{
+    if (mat->is_refractive)
+    {
+        // refractive bounce
+        mt__ray_refract(ray, hit, mat);
+    }
+    else
+    {
+        // reflective bounce
+        mt__ray_reflect(ray, hit, mat);
+    }
 }
 
 /////////////////////////////////
@@ -1114,38 +1151,30 @@ typedef struct MT_Renderer
     MT_RenderThreadStation thread_station;
 } MT_Renderer;
 
-static void mt__render_handle_tri(MT_Ray *ray, MT_Tri *tri, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+static void mt__render_handle_tri(MT_Ray *ray, MT_Tri *tri, MT_RayHit *hit_info, MT_Material *hit_mat)
 {
-    MT_RayHit ray_hit = mt__ray_hit_tri(ray, tri, 1);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    MT_RayHit ray_hit = mt__ray_hit_tri(ray, tri);
+    if (ray_hit.hit && ray_hit.t < hit_info->t)
     {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
-
+        *hit_info = ray_hit;
         *hit_mat = *tri->mat;
     }
 }
 
-static void mt__render_handle_mesh(MT_Ray *ray, MT_Mesh *mesh, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+static void mt__render_handle_mesh(MT_Ray *ray, MT_Mesh *mesh, MT_RayHit *hit_info, MT_Material *hit_mat)
 {
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        mt__render_handle_tri(ray, mesh->tris[i], hit_info, hit_mat, t_lowest);
+        mt__render_handle_tri(ray, mesh->tris[i], hit_info, hit_mat);
     }
 }
 
-static void mt__render_handle_sphere(MT_Ray *ray, MT_Sphere *sphere, MT_RayHit *hit_info, MT_Material *hit_mat, float *t_lowest)
+static void mt__render_handle_sphere(MT_Ray *ray, MT_Sphere *sphere, MT_RayHit *hit_info, MT_Material *hit_mat)
 {
     MT_RayHit ray_hit = mt__ray_hit_sphere(ray, sphere);
-    if (ray_hit.hit && ray_hit.t < *t_lowest)
+    if (ray_hit.hit && ray_hit.t < hit_info->t)
     {
-        hit_info->hit = 1;
-        hit_info->pos = ray_hit.pos;
-        hit_info->normal = ray_hit.normal;
-        *t_lowest = ray_hit.t;
-
+        *hit_info = ray_hit;
         *hit_mat = *sphere->mat;
     }
 }
@@ -1190,15 +1219,13 @@ static void mt__render_chunk(void *data)
             MT_Ray ray;
             ray.origin = rs->camera->position;
             ray.direction = ray_direction;
-            ray.color = (MT_Vec3){1, 1, 1};
-            ray.radiance = (MT_Vec3){0, 0, 0};
+            ray.throughput = (MT_Vec3){1, 1, 1};
+            ray.accumulated_radiance = (MT_Vec3){0, 0, 0};
 
             for (int j = 0; j < rs->bounces; ++j)
             {
-                float t_lowest = FLT_MAX;
-
-                MT_RayHit hit_info;
-                hit_info.hit = 0;
+                MT_RayHit hit_info = {0};
+                hit_info.t = FLT_MAX;
                 MT_Material hit_mat;
 
                 for (int k = 0; k < rs->world->object_index; ++k)
@@ -1206,13 +1233,13 @@ static void mt__render_chunk(void *data)
                     switch (rs->world->objects_track[k])
                     {
                     case MT_OBJECT_TRI:
-                        mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[k], &hit_info, &hit_mat);
                         break;
                     case MT_OBJECT_MESH:
-                        mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[k], &hit_info, &hit_mat);
                         break;
                     case MT_OBJECT_SPHERE:
-                        mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[k], &hit_info, &hit_mat, &t_lowest);
+                        mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[k], &hit_info, &hit_mat);
                         break;
                     }
                 }
@@ -1226,12 +1253,12 @@ static void mt__render_chunk(void *data)
                     MT_Vec3 unit_direction = mt_vec3_mult_v(mt_vec3_normalize(ray.direction), -1.0f);
                     float a = 0.5f * (unit_direction.y + 1.0f);
                     MT_Vec3 color = mt_vec3_add((MT_Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (MT_Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
-                    ray.radiance = mt_vec3_add(ray.radiance, mt_vec3_mult(ray.color, color));
+                    ray.accumulated_radiance = mt_vec3_add(ray.accumulated_radiance, mt_vec3_mult(ray.throughput, color));
                     break;
                 }
             }
 
-            render_color = mt_vec3_add(render_color, ray.radiance);
+            render_color = mt_vec3_add(render_color, ray.accumulated_radiance);
         }
 
         render_color = mt_vec3_div_v(render_color, (float)rs->samples);
