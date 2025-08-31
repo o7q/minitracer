@@ -906,16 +906,40 @@ static MT_RayHit mt__ray_hit_sphere(const MT_Ray *ray, const MT_Sphere *sphere)
     float h = mt_vec3_dot(ray->direction, oc);
     float c = mt_vec3_length_squared(oc) - sphere->radius * sphere->radius;
     float discriminant = h * h - a * c;
-    if (discriminant >= 0)
+    if (discriminant < 0)
     {
-        float t = (h - sqrtf(discriminant)) / a;
-        if (t >= 0.0f)
-        {
-            hit.hit = 1;
-            hit.t = t;
-            hit.pos = mt__ray_at(ray, hit.t);
-            hit.normal = mt_vec3_normalize(mt_vec3_sub(hit.pos, sphere->position));
-        }
+        return hit;
+    }
+
+    float sqrt_disc = sqrtf(discriminant);
+    float t1 = (h - sqrt_disc) / a;
+    float t2 = (h + sqrt_disc) / a;
+
+    float t_nearest = -1.0f;
+
+    float t_hit = -1.0f;
+    if (t1 >= 0.0f)
+    {
+        t_hit = t1;
+    }
+    else if (t2 >= 0.0f)
+    {
+        t_hit = t2; // ray origin is inside sphere
+    }
+    else
+    {
+        return hit; // both behind ray
+    }
+
+    hit.hit = 1;
+    hit.t = t_hit;
+    hit.pos = mt__ray_at(ray, t_hit);
+    hit.normal = mt_vec3_normalize(mt_vec3_sub(hit.pos, sphere->position));
+    hit.is_backface = (mt_vec3_dot(ray->direction, hit.normal) > 0.0f);
+
+    if (hit.is_backface)
+    {
+        hit.normal = mt_vec3_negate(hit.normal);
     }
 
     return hit;
@@ -938,9 +962,6 @@ static void mt__ray_refract(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
         n2 = ior_air;
     }
 
-    hit->normal = mt_vec3_normalize(hit->normal);
-    ray->direction = mt_vec3_normalize(ray->direction);
-
     float eta = n1 / n2;
     float cos_i = -mt_vec3_dot(hit->normal, ray->direction);    // incident cos
     float cos_t_sq = 1.0f - eta * eta * (1.0f - cos_i * cos_i); // transmittance cos squared
@@ -961,15 +982,15 @@ static void mt__ray_refract(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
             mt_vec3_mult_v(hit->normal, eta * cos_i - cos_t));
 
         ray->direction = mt_vec3_normalize(refracted);
+        ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(ray->direction, MT_EPSILON * 10.0f));
     }
     else
     {
         MT_Vec3 i_n = mt_vec3_normalize(ray->direction);
         float d = mt_vec3_dot(i_n, hit->normal);
-        ray->origin = hit->pos;
         ray->direction = mt_vec3_sub(i_n, mt_vec3_mult_v(hit->normal, 2.0f * d));
+        ray->origin = hit->pos;
     }
-    ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(ray->direction, MT_EPSILON * 10.0f));
 }
 
 static void mt__ray_reflect(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
@@ -987,6 +1008,7 @@ static void mt__ray_reflect(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
 
     // scatter from roughness
     ray->direction = mt_vec3_lerp(ray->direction, mt__random_hemi_normal_distribution(hit->normal), mat->roughness);
+    ray->direction = mt_vec3_normalize(ray->direction);
 
     // fix self intersection
     ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(hit->normal, MT_EPSILON * 10.0f));
@@ -1286,11 +1308,11 @@ static void mt__render_chunk(void *data)
         rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)] = render_color;
 
         // display mt_render progress
-        // if (i % 100 == 0 && rc->index == 5)
-        // {
-        //     printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
-        //     fflush(stdout);
-        // }
+        if (i % 100 == 0 && rc->index == 5)
+        {
+            printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
+            fflush(stdout);
+        }
     }
 }
 

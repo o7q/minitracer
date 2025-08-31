@@ -3,8 +3,8 @@
 
 int main(void)
 {
-    int windowScale = 6;
-    int renderScale = 1;
+    int windowScale = 2;
+    int renderScale = 4;
 
     MT_World *world = mt_world_create(100);
     MT_Camera *camera = mt_camera_create();
@@ -40,20 +40,20 @@ int main(void)
     // room
     MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){20, 1, 20}, mat_diffuse);
     mt_world_add_object(world, floor, MT_OBJECT_MESH);
-    // MT_Mesh *red_wall = mt_mesh_create_plane((MT_Vec3){-2.49, -2.49, 0}, (MT_Vec3){0, 0, -MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_red);
-    // mt_world_add_object(world, red_wall, MT_OBJECT_MESH);
-    // MT_Mesh *green_wall = mt_mesh_create_plane((MT_Vec3){2.49, -2.49, 0}, (MT_Vec3){0, 0, MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_green);
-    // mt_world_add_object(world, green_wall, MT_OBJECT_MESH);
-    // MT_Mesh *back_wall = mt_mesh_create_plane((MT_Vec3){0, -2.49, -2.49}, (MT_Vec3){MT_PI / 2.0f, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
-    // mt_world_add_object(world, back_wall, MT_OBJECT_MESH);
-    // MT_Mesh *ceil = mt_mesh_create_plane((MT_Vec3){0, -4.99, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
-    // mt_world_add_object(world, ceil, MT_OBJECT_MESH);
+    MT_Mesh *red_wall = mt_mesh_create_plane((MT_Vec3){-2.49, -2.49, 0}, (MT_Vec3){0, 0, -MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_red);
+    mt_world_add_object(world, red_wall, MT_OBJECT_MESH);
+    MT_Mesh *green_wall = mt_mesh_create_plane((MT_Vec3){2.49, -2.49, 0}, (MT_Vec3){0, 0, MT_PI / 2.0f}, (MT_Vec3){5, 1, 5}, mat_diffuse_green);
+    mt_world_add_object(world, green_wall, MT_OBJECT_MESH);
+    MT_Mesh *back_wall = mt_mesh_create_plane((MT_Vec3){0, -2.49, -2.49}, (MT_Vec3){MT_PI / 2.0f, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
+    mt_world_add_object(world, back_wall, MT_OBJECT_MESH);
+    MT_Mesh *ceil = mt_mesh_create_plane((MT_Vec3){0, -4.99, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){5, 1, 5}, mat_diffuse);
+    mt_world_add_object(world, ceil, MT_OBJECT_MESH);
     MT_Mesh *light = mt_mesh_create_plane((MT_Vec3){0, -4.9, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1.5, 1, 1.5}, mat_light);
     mt_world_add_object(world, light, MT_OBJECT_MESH);
     
     MT_Sphere *sphere = mt_sphere_create((MT_Vec3){-1, -1, -1}, 1.0f, mat_glass);
     mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
-    MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){2, -1.05, 1}, (MT_Vec3){0, 1, 0}, (MT_Vec3){2, 2, 2}, mat_diffuse_red);
+    MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){1, -0.55, 1}, (MT_Vec3){0, 1, 0}, (MT_Vec3){1, 1, 1}, mat_glossy);
     mt_world_add_object(world, cube, MT_OBJECT_MESH);
 
     Color *color = (Color *)malloc(sizeof(Color) * mt_renderer_get_width(renderer) * mt_renderer_get_height(renderer));
@@ -62,9 +62,9 @@ int main(void)
     RenderTexture2D target = LoadRenderTexture(mt_renderer_get_width(renderer), mt_renderer_get_height(renderer));
     SetTargetFPS(60);
 
+    mt_render(renderer);
     while (!WindowShouldClose())
     {
-        mt_render(renderer);
         if (IsKeyDown(KEY_SPACE))
         {
             camera->position.y -= 0.1f;
