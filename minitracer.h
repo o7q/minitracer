@@ -190,16 +190,19 @@ typedef struct MT_RenderChunk MT_RenderChunk;
 typedef struct MT_Renderer MT_Renderer;
 
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count);
-void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
-void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
 void mt_renderer_set_world(MT_Renderer *renderer, MT_World *world);
 void mt_renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera);
+void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
+void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
+void mt_renderer_set_progressive(MT_Renderer *renderer, int enable);
+void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
 MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer);
-MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y);
+MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, int as_8bit);
 int mt_renderer_get_width(MT_Renderer *renderer);
 int mt_renderer_get_height(MT_Renderer *renderer);
+int mt_renderer_get_progressive_index(MT_Renderer *renderer);
 
 void mt_render(MT_Renderer *renderer);
 
@@ -915,8 +918,6 @@ static MT_RayHit mt__ray_hit_sphere(const MT_Ray *ray, const MT_Sphere *sphere)
     float t1 = (h - sqrt_disc) / a;
     float t2 = (h + sqrt_disc) / a;
 
-    float t_nearest = -1.0f;
-
     float t_hit = -1.0f;
     if (t1 >= 0.0f)
     {
@@ -984,12 +985,13 @@ static void mt__ray_refract(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
         ray->direction = mt_vec3_normalize(refracted);
         ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(ray->direction, MT_EPSILON * 10.0f));
     }
-    else
+    else // internal reflection
     {
-        MT_Vec3 i_n = mt_vec3_normalize(ray->direction);
-        float d = mt_vec3_dot(i_n, hit->normal);
-        ray->direction = mt_vec3_sub(i_n, mt_vec3_mult_v(hit->normal, 2.0f * d));
-        ray->origin = hit->pos;
+
+        MT_Vec3 n = hit->normal;
+        float d = mt_vec3_dot(ray->direction, n);
+        ray->direction = mt_vec3_sub(ray->direction, mt_vec3_mult_v(n, 2.0f * d));
+        ray->origin = mt_vec3_add(hit->pos, mt_vec3_mult_v(n, MT_EPSILON * 0.1f));
     }
 }
 
@@ -1136,6 +1138,8 @@ typedef struct MT_RenderSettings
     int bounces;
     int samples;
 
+    int is_progressive;
+    int progressive_index;
 } MT_RenderSettings;
 
 typedef struct MT_RenderThreadStation
@@ -1236,7 +1240,13 @@ static void mt__render_chunk(void *data)
 
         MT_Vec3 render_color = (MT_Vec3){0, 0, 0};
 
-        for (int i = 0; i < rs->samples; ++i)
+        int samples = rs->samples;
+        if (rs->is_progressive)
+        {
+            samples = 1;
+        }
+
+        for (int i = 0; i < samples; ++i)
         {
             MT_Ray ray;
             ray.origin = rs->camera->position;
@@ -1275,7 +1285,7 @@ static void mt__render_chunk(void *data)
                     MT_Vec3 unit_direction = mt_vec3_mult_v(mt_vec3_normalize(ray.direction), -1.0f);
                     float a = 0.5f * (unit_direction.y + 1.0f);
                     MT_Vec3 color = mt_vec3_add((MT_Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (MT_Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
-                    ray.accumulated_radiance = mt_vec3_add(ray.accumulated_radiance, mt_vec3_mult(ray.throughput, color));
+                    // ray.accumulated_radiance = mt_vec3_add(ray.accumulated_radiance, mt_vec3_mult(ray.throughput, color));
                     break;
                 }
             }
@@ -1283,35 +1293,14 @@ static void mt__render_chunk(void *data)
             render_color = mt_vec3_add(render_color, ray.accumulated_radiance);
         }
 
-        render_color = mt_vec3_div_v(render_color, (float)rs->samples);
-
-        float gamma = 0.9f;
-
-        render_color.x = powf(render_color.x, 1.0f / gamma);
-        render_color.y = powf(render_color.y, 1.0f / gamma);
-        render_color.z = powf(render_color.z, 1.0f / gamma);
-
-        // clamp color
-        if (render_color.x > 1.0f)
+        MT_Vec3 *value = &rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)];
+        if (rs->is_progressive && rs->progressive_index != 1)
         {
-            render_color.x = 1.0f;
+            *value = mt_vec3_add(*value, mt_vec3_div_v(mt_vec3_sub(render_color, *value), rs->progressive_index));
         }
-        if (render_color.y > 1.0f)
+        else
         {
-            render_color.y = 1.0f;
-        }
-        if (render_color.z > 1.0f)
-        {
-            render_color.z = 1.0f;
-        }
-
-        rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)] = render_color;
-
-        // display mt_render progress
-        if (i % 100 == 0 && rc->index == 5)
-        {
-            printf("[%d] %d / %d\n", rc->index, i - rc->px_start, rc->px_end - rc->px_start);
-            fflush(stdout);
+            *value = mt_vec3_div_v(render_color, (float)samples);
         }
     }
 }
@@ -1356,7 +1345,7 @@ static void *mt__worker_thread(void *data)
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
     MT_Renderer *renderer = (MT_Renderer *)malloc(sizeof(MT_Renderer));
-    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20}};
+    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 0, 1}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
     renderer->render_chunks = (MT_RenderChunk **)malloc(sizeof(MT_RenderChunk *) * thread_count);
@@ -1414,9 +1403,21 @@ void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples)
 {
     renderer->settings.samples = samples;
 }
+
 void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces)
 {
     renderer->settings.bounces = bounces;
+}
+
+void mt_renderer_set_progressive(MT_Renderer *renderer, int enable)
+{
+    renderer->settings.is_progressive = enable;
+    renderer->settings.progressive_index = 1;
+}
+
+void mt_renderer_reset_progressive(MT_Renderer *renderer)
+{
+    renderer->settings.progressive_index = 1;
 }
 
 void mt_renderer_delete(MT_Renderer *renderer)
@@ -1478,23 +1479,61 @@ MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer)
     return renderer->thread_station.pixels;
 }
 
-MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y)
+MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, int as_8bit)
 {
     int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
-    return renderer->thread_station.pixels[index];
+    MT_Vec3 pixel = renderer->thread_station.pixels[index];
+
+    float gamma = 1.2f;
+
+    pixel.x = powf(pixel.x, 1.0f / gamma);
+    pixel.y = powf(pixel.y, 1.0f / gamma);
+    pixel.z = powf(pixel.z, 1.0f / gamma);
+
+    // clamp color
+    if (pixel.x > 1.0f)
+    {
+        pixel.x = 1.0f;
+    }
+    if (pixel.y > 1.0f)
+    {
+        pixel.y = 1.0f;
+    }
+    if (pixel.z > 1.0f)
+    {
+        pixel.z = 1.0f;
+    }
+
+    if (as_8bit)
+    {
+        pixel = mt_vec3_mult_v(pixel, 255.0f);
+    }
+
+    return pixel;
 }
 
 int mt_renderer_get_width(MT_Renderer *renderer)
 {
     return renderer->settings.width;
 }
+
 int mt_renderer_get_height(MT_Renderer *renderer)
 {
     return renderer->settings.height;
 }
 
+int mt_renderer_get_progressive_index(MT_Renderer *renderer)
+{
+    return renderer->settings.progressive_index;
+}
+
 void mt_render(MT_Renderer *renderer)
 {
+    if (renderer->settings.is_progressive && renderer->settings.progressive_index > renderer->settings.samples)
+    {
+        return;
+    }
+
     pthread_mutex_lock(&renderer->thread_station.finished_mutex);
     renderer->thread_station.finished_count = 0;
     pthread_mutex_unlock(&renderer->thread_station.finished_mutex);
@@ -1514,6 +1553,8 @@ void mt_render(MT_Renderer *renderer)
         pthread_cond_wait(&renderer->thread_station.thread_done_cond, &renderer->thread_station.finished_mutex);
     }
     pthread_mutex_unlock(&renderer->thread_station.finished_mutex);
+
+    ++renderer->settings.progressive_index;
 }
 
 #endif // MINITRACER_IMPLEMENTATION
