@@ -1,5 +1,2 @@
-- Add color correction
-- Add environment system
 - Add BMP rendering
-- Add blackbody radiation
 - Optimize using bounding volume hierarchies

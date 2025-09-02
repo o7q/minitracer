@@ -63,6 +63,7 @@ float mt_vec3_angle(MT_Vec3 a, MT_Vec3 b);
 MT_Vec3 mt_vec3_normalize(MT_Vec3 a);
 MT_Vec3 mt_vec3_lerp(MT_Vec3 a, MT_Vec3 b, float t);
 MT_Vec3 mt_vec3_negate(MT_Vec3 a);
+MT_Vec3 mt_vec3_clamp(MT_Vec3 a, float clamp_a, float clamp_c);
 
 //////////////////////////////////
 // ========== MATRIX ========== //
@@ -97,7 +98,7 @@ typedef struct MT_Material
     MT_Vec3 emission;
     float emission_strength;
     float roughness;
-    int is_refractive;
+    int b_is_refractive;
     float ior;
 } MT_Material;
 
@@ -158,6 +159,19 @@ void mt_sphere_delete(MT_Sphere *sphere);
 typedef struct MT_Ray MT_Ray;
 typedef struct MT_RayHit MT_RayHit;
 
+///////////////////////////////////////
+// ========== ENVIRONMENT ========== //
+///////////////////////////////////////
+typedef struct MT_Environment
+{
+    MT_Vec3 zenith_color;
+    MT_Vec3 horizon_color;
+    float brightness;
+} MT_Environment;
+
+MT_Environment *mt_environment_create();
+void mt_environment_delete(MT_Environment *environment);
+
 /////////////////////////////////
 // ========== WORLD ========== //
 /////////////////////////////////
@@ -165,6 +179,7 @@ typedef struct MT_World MT_World;
 
 MT_World *mt_world_create(unsigned int max_objects);
 void mt_world_add_object(MT_World *world, void *object, ObjectType object_type);
+void mt_world_set_environment(MT_World *world, MT_Environment *environment);
 void mt_world_delete(MT_World *world);
 
 //////////////////////////////////
@@ -194,12 +209,13 @@ void mt_renderer_set_world(MT_Renderer *renderer, MT_World *world);
 void mt_renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera);
 void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
 void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
-void mt_renderer_set_progressive(MT_Renderer *renderer, int enable);
+void mt_renderer_set_progressive(MT_Renderer *renderer, int b_enabled);
+void mt_renderer_set_antialiasing(MT_Renderer *renderer, int b_enabled);
 void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
 MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer);
-MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, int as_8bit);
+MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit);
 int mt_renderer_get_width(MT_Renderer *renderer);
 int mt_renderer_get_height(MT_Renderer *renderer);
 int mt_renderer_get_progressive_index(MT_Renderer *renderer);
@@ -245,7 +261,7 @@ static inline float mt__lerp(float a, float b, float t)
 
 static inline int mt__sign(float v)
 {
-    return v < 0.0f ? -1 : 1;
+    return v < 0.0f ? -1.0f : 1.0f;
 }
 
 static inline unsigned int mt__index_2d_to_1d(unsigned int x, unsigned int y, unsigned int width)
@@ -345,6 +361,36 @@ MT_Vec3 mt_vec3_lerp(MT_Vec3 a, MT_Vec3 b, float t)
 MT_Vec3 mt_vec3_negate(MT_Vec3 a)
 {
     return mt_vec3_mult_v(a, -1.0f);
+}
+
+MT_Vec3 mt_vec3_clamp(MT_Vec3 a, float min, float max)
+{
+    if (a.x < min)
+    {
+        a.x = min;
+    }
+    if (a.x > max)
+    {
+        a.x = max;
+    }
+    if (a.y < min)
+    {
+        a.y = min;
+    }
+    if (a.y > max)
+    {
+        a.y = max;
+    }
+    if (a.z < min)
+    {
+        a.z = min;
+    }
+    if (a.z > max)
+    {
+        a.z = max;
+    }
+
+    return a;
 }
 
 //////////////////////////////////
@@ -486,8 +532,8 @@ MT_Material *mt_material_create()
     mat->emission = (MT_Vec3){1.0f, 1.0f, 1.0f};
     mat->emission_strength = 0.0f;
     mat->roughness = 1.0f;
-    mat->is_refractive = 0;
-    mat->ior = 1.0f;
+    mat->b_is_refractive = 0;
+    mat->ior = 1.5f;
     return mat;
 }
 
@@ -1018,7 +1064,7 @@ static void mt__ray_reflect(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
 
 static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
 {
-    if (mat->is_refractive)
+    if (mat->b_is_refractive)
     {
         // refractive bounce
         mt__ray_refract(ray, hit, mat);
@@ -1030,6 +1076,35 @@ static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
     }
 }
 
+///////////////////////////////////////
+// ========== ENVIRONMENT ========== //
+///////////////////////////////////////
+MT_Environment *mt_environment_create()
+{
+    MT_Environment *env = (MT_Environment *)malloc(sizeof(MT_Environment));
+    env->zenith_color = (MT_Vec3){0.682f, 0.827f, 0.957f};
+    env->horizon_color = (MT_Vec3){1.0f, 0.930f, 0.880f};
+    env->brightness = 1.0f;
+    return env;
+}
+
+void mt_environment_delete(MT_Environment *environment)
+{
+    if (environment)
+    {
+        free(environment);
+    }
+}
+
+static void mt__ray_hit_environment(MT_Environment *env, MT_Ray *ray)
+{
+    MT_Vec3 unit_direction = mt_vec3_negate(mt_vec3_normalize(ray->direction));
+    float t = 0.5f * (unit_direction.y + 1.0f);
+    MT_Vec3 color = mt_vec3_lerp(env->horizon_color, env->zenith_color, t);
+    color = mt_vec3_clamp(mt_vec3_mult_v(color, env->brightness), 0.0f, 1.0f);
+    ray->accumulated_radiance = mt_vec3_add(ray->accumulated_radiance, mt_vec3_mult(ray->throughput, color));
+}
+
 /////////////////////////////////
 // ========== WORLD ========== //
 /////////////////////////////////
@@ -1037,6 +1112,8 @@ typedef struct MT_World
 {
     void **objects;
     ObjectType *objects_track;
+
+    MT_Environment *environment;
 
     unsigned int object_index;
     unsigned int max_objects;
@@ -1048,6 +1125,7 @@ MT_World *mt_world_create(unsigned int max_objects)
     MT_World *world = (MT_World *)malloc(sizeof(MT_World));
     world->objects = (void **)malloc(sizeof(void *) * max_objects);
     world->objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
+    world->environment = NULL;
     world->object_index = 0;
     world->max_objects = max_objects;
     return world;
@@ -1063,6 +1141,11 @@ void mt_world_add_object(MT_World *world, void *object, ObjectType object_type)
     world->objects[world->object_index] = object;
     world->objects_track[world->object_index] = object_type;
     ++world->object_index;
+}
+
+void mt_world_set_environment(MT_World *world, MT_Environment *environment)
+{
+    world->environment = environment;
 }
 
 void mt_world_delete(MT_World *world)
@@ -1102,6 +1185,8 @@ void mt_world_delete(MT_World *world)
         free(world->objects_track);
     }
 
+    mt_environment_delete(world->environment);
+
     free(world);
 }
 
@@ -1138,8 +1223,8 @@ typedef struct MT_RenderSettings
     int bounces;
     int samples;
 
-    int is_progressive;
-    int progressive_index;
+    int b_progressive;
+    int b_antialias;
 } MT_RenderSettings;
 
 typedef struct MT_RenderThreadStation
@@ -1150,6 +1235,7 @@ typedef struct MT_RenderThreadStation
     pthread_cond_t thread_done_cond;
 
     MT_Vec3 *pixels;
+    int progressive_index;
 } MT_RenderThreadStation;
 
 typedef struct MT_RenderChunk
@@ -1230,7 +1316,16 @@ static void mt__render_chunk(void *data)
         int x = i % rs->width;
         int y = i / rs->width;
 
-        MT_Vec3 pixel_center = mt_vec3_add(pixel00_pos, (MT_Vec3){x * pixel_delta_u, y * pixel_delta_v, 0});
+        float antialias_offset_x = 0.0f;
+        float antialias_offset_y = 0.0f;
+
+        if (rc->settings->b_antialias)
+        {
+            antialias_offset_x = mt__random_float_thread() / 2.0f;
+            antialias_offset_y = mt__random_float_thread() / 2.0f;
+        }
+
+        MT_Vec3 pixel_center = mt_vec3_add(pixel00_pos, (MT_Vec3){(x + antialias_offset_x) * pixel_delta_u, (y + antialias_offset_y) * pixel_delta_v, 0});
 
         MT_Mat4x4 translate = mt_mat4x4_create_translation(mt_vec3_mult_v(rs->camera->position, -1));
         MT_Mat4x4 rotation = mt_mat4x4_create_rotation(rs->camera->rotation);
@@ -1241,7 +1336,7 @@ static void mt__render_chunk(void *data)
         MT_Vec3 render_color = (MT_Vec3){0, 0, 0};
 
         int samples = rs->samples;
-        if (rs->is_progressive)
+        if (rs->b_progressive)
         {
             samples = 1;
         }
@@ -1258,7 +1353,7 @@ static void mt__render_chunk(void *data)
             {
                 MT_RayHit hit_info = {0};
                 hit_info.t = FLT_MAX;
-                MT_Material hit_mat;
+                MT_Material hit_mat = {0};
 
                 for (int k = 0; k < rs->world->object_index; ++k)
                 {
@@ -1282,10 +1377,10 @@ static void mt__render_chunk(void *data)
                 }
                 else
                 {
-                    MT_Vec3 unit_direction = mt_vec3_mult_v(mt_vec3_normalize(ray.direction), -1.0f);
-                    float a = 0.5f * (unit_direction.y + 1.0f);
-                    MT_Vec3 color = mt_vec3_add((MT_Vec3){1.0f - a, 1.0f - a, 1.0f - a}, (MT_Vec3){a * 0.5f, a * 0.7f, a * 1.0f});
-                    // ray.accumulated_radiance = mt_vec3_add(ray.accumulated_radiance, mt_vec3_mult(ray.throughput, color));
+                    if (rs->world->environment)
+                    {
+                        mt__ray_hit_environment(rs->world->environment, &ray);
+                    }
                     break;
                 }
             }
@@ -1294,9 +1389,9 @@ static void mt__render_chunk(void *data)
         }
 
         MT_Vec3 *value = &rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)];
-        if (rs->is_progressive && rs->progressive_index != 1)
+        if (rs->b_progressive && rc->thread_station->progressive_index != 1)
         {
-            *value = mt_vec3_add(*value, mt_vec3_div_v(mt_vec3_sub(render_color, *value), rs->progressive_index));
+            *value = mt_vec3_add(*value, mt_vec3_div_v(mt_vec3_sub(render_color, *value), rc->thread_station->progressive_index));
         }
         else
         {
@@ -1345,7 +1440,7 @@ static void *mt__worker_thread(void *data)
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
     MT_Renderer *renderer = (MT_Renderer *)malloc(sizeof(MT_Renderer));
-    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 0, 1}};
+    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 1, 1}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
     renderer->render_chunks = (MT_RenderChunk **)malloc(sizeof(MT_RenderChunk *) * thread_count);
@@ -1409,15 +1504,20 @@ void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces)
     renderer->settings.bounces = bounces;
 }
 
-void mt_renderer_set_progressive(MT_Renderer *renderer, int enable)
+void mt_renderer_set_progressive(MT_Renderer *renderer, int b_enabled)
 {
-    renderer->settings.is_progressive = enable;
-    renderer->settings.progressive_index = 1;
+    renderer->settings.b_progressive = b_enabled;
+    renderer->thread_station.progressive_index = 1;
+}
+
+void mt_renderer_set_antialiasing(MT_Renderer *renderer, int b_enabled)
+{
+    renderer->settings.b_antialias = b_enabled;
 }
 
 void mt_renderer_reset_progressive(MT_Renderer *renderer)
 {
-    renderer->settings.progressive_index = 1;
+    renderer->thread_station.progressive_index = 1;
 }
 
 void mt_renderer_delete(MT_Renderer *renderer)
@@ -1441,7 +1541,7 @@ void mt_renderer_delete(MT_Renderer *renderer)
         pthread_cond_signal(&rc->wake_cond);
         pthread_mutex_unlock(&rc->terminate_mutex);
 
-        printf("Freeing: %d\n", i);
+        printf("[Renderer] (Thread %d): Freeing\n", i);
         fflush(stdout);
 
         pthread_join(renderer->threads[i], NULL);
@@ -1479,32 +1579,19 @@ MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer)
     return renderer->thread_station.pixels;
 }
 
-MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, int as_8bit)
+MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit)
 {
     int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
     MT_Vec3 pixel = renderer->thread_station.pixels[index];
-
-    float gamma = 1.2f;
 
     pixel.x = powf(pixel.x, 1.0f / gamma);
     pixel.y = powf(pixel.y, 1.0f / gamma);
     pixel.z = powf(pixel.z, 1.0f / gamma);
 
     // clamp color
-    if (pixel.x > 1.0f)
-    {
-        pixel.x = 1.0f;
-    }
-    if (pixel.y > 1.0f)
-    {
-        pixel.y = 1.0f;
-    }
-    if (pixel.z > 1.0f)
-    {
-        pixel.z = 1.0f;
-    }
+    pixel = mt_vec3_clamp(pixel, 0.0f, 1.0f);
 
-    if (as_8bit)
+    if (b_as_8bit)
     {
         pixel = mt_vec3_mult_v(pixel, 255.0f);
     }
@@ -1524,12 +1611,12 @@ int mt_renderer_get_height(MT_Renderer *renderer)
 
 int mt_renderer_get_progressive_index(MT_Renderer *renderer)
 {
-    return renderer->settings.progressive_index;
+    return renderer->thread_station.progressive_index;
 }
 
 void mt_render(MT_Renderer *renderer)
 {
-    if (renderer->settings.is_progressive && renderer->settings.progressive_index > renderer->settings.samples)
+    if (renderer->settings.b_progressive && renderer->thread_station.progressive_index > renderer->settings.samples)
     {
         return;
     }
@@ -1554,7 +1641,7 @@ void mt_render(MT_Renderer *renderer)
     }
     pthread_mutex_unlock(&renderer->thread_station.finished_mutex);
 
-    ++renderer->settings.progressive_index;
+    ++renderer->thread_station.progressive_index;
 }
 
 #endif // MINITRACER_IMPLEMENTATION
