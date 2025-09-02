@@ -200,6 +200,7 @@ void mt_camera_delete(MT_Camera *cam);
 // ========== RENDER ========== //
 //////////////////////////////////
 typedef struct MT_RenderSettings MT_RenderSettings;
+typedef struct MT_RenderPixel MT_RenderPixel;
 typedef struct MT_RenderThreadStation MT_RenderThreadStation;
 typedef struct MT_RenderChunk MT_RenderChunk;
 typedef struct MT_Renderer MT_Renderer;
@@ -214,7 +215,6 @@ void mt_renderer_set_antialiasing(MT_Renderer *renderer, int b_enabled);
 void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
-MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer);
 MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit);
 int mt_renderer_get_width(MT_Renderer *renderer);
 int mt_renderer_get_height(MT_Renderer *renderer);
@@ -1227,6 +1227,11 @@ typedef struct MT_RenderSettings
     int b_antialias;
 } MT_RenderSettings;
 
+typedef struct MT_RenderPixel
+{
+    MT_Vec3 color;
+} MT_RenderPixel;
+
 typedef struct MT_RenderThreadStation
 {
     unsigned int finished_count;
@@ -1234,7 +1239,7 @@ typedef struct MT_RenderThreadStation
     pthread_mutex_t finished_mutex;
     pthread_cond_t thread_done_cond;
 
-    MT_Vec3 *pixels;
+    MT_RenderPixel *pixels;
     int progressive_index;
 } MT_RenderThreadStation;
 
@@ -1313,6 +1318,8 @@ static void mt__render_chunk(void *data)
 
     for (int i = rc->px_start; i < rc->px_end; ++i)
     {
+        MT_RenderPixel *pixel = &rc->thread_station->pixels[i];
+
         int x = i % rs->width;
         int y = i / rs->width;
 
@@ -1336,6 +1343,7 @@ static void mt__render_chunk(void *data)
         MT_Vec3 render_color = (MT_Vec3){0, 0, 0};
 
         int samples = rs->samples;
+        int bounces = rs->bounces;
         if (rs->b_progressive)
         {
             samples = 1;
@@ -1349,7 +1357,7 @@ static void mt__render_chunk(void *data)
             ray.throughput = (MT_Vec3){1, 1, 1};
             ray.accumulated_radiance = (MT_Vec3){0, 0, 0};
 
-            for (int j = 0; j < rs->bounces; ++j)
+            for (int j = 0; j < bounces; ++j)
             {
                 MT_RayHit hit_info = {0};
                 hit_info.t = FLT_MAX;
@@ -1388,14 +1396,14 @@ static void mt__render_chunk(void *data)
             render_color = mt_vec3_add(render_color, ray.accumulated_radiance);
         }
 
-        MT_Vec3 *value = &rc->thread_station->pixels[mt__index_2d_to_1d(x, y, rc->settings->width)];
         if (rs->b_progressive && rc->thread_station->progressive_index != 1)
         {
-            *value = mt_vec3_add(*value, mt_vec3_div_v(mt_vec3_sub(render_color, *value), rc->thread_station->progressive_index));
+            MT_Vec3 progressed_pixel = mt_vec3_add(pixel->color, mt_vec3_div_v(mt_vec3_sub(render_color, pixel->color), rc->thread_station->progressive_index));
+            pixel->color = progressed_pixel;
         }
         else
         {
-            *value = mt_vec3_div_v(render_color, (float)samples);
+            pixel->color = mt_vec3_div_v(render_color, (float)samples);
         }
     }
 }
@@ -1447,7 +1455,7 @@ MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigne
 
     renderer->thread_station.thread_count = thread_count;
 
-    renderer->thread_station.pixels = (MT_Vec3 *)malloc(sizeof(MT_Vec3) * width * height);
+    renderer->thread_station.pixels = (MT_RenderPixel *)calloc(width * height, sizeof(MT_RenderPixel));
 
     pthread_mutex_init(&renderer->thread_station.finished_mutex, NULL);
     pthread_cond_init(&renderer->thread_station.thread_done_cond, NULL);
@@ -1574,15 +1582,10 @@ void mt_renderer_delete(MT_Renderer *renderer)
     free(renderer);
 }
 
-MT_Vec3 *mt_renderer_get_pixels(MT_Renderer *renderer)
-{
-    return renderer->thread_station.pixels;
-}
-
 MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit)
 {
     int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
-    MT_Vec3 pixel = renderer->thread_station.pixels[index];
+    MT_Vec3 pixel = renderer->thread_station.pixels[index].color;
 
     pixel.x = powf(pixel.x, 1.0f / gamma);
     pixel.y = powf(pixel.y, 1.0f / gamma);

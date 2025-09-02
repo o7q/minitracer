@@ -3,6 +3,7 @@ project(minitracer)
 
 # example setups:
 # balls
+# cornell_box
 set(EXAMPLE balls)
 
 file(GLOB UTIL_SRC "examples/raylib_utils/*.c")
