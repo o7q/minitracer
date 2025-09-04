@@ -22,9 +22,9 @@ This is a zero-library raytracer, examples use raylib to display a window.
             <a href="./examples/cornell_box.c">cornell_box.c</p>
         </td>
         <td>
-            <img src="./docs/screenshots/cornell_box.bmp">
+            <img src="./docs/screenshots/suzanne.bmp">
             <br>
-            <a href="./examples/cornell_box.c">cornell_box.c</p>
+            <a href="./examples/suzanne.c">suzanne.c</p>
         </td>
     </tr>
 </table>

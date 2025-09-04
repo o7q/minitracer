@@ -5,7 +5,8 @@ project(minitracer)
 # balls
 # cornell_box
 # infinite
-set(EXAMPLE infinite)
+# suzanne
+set(EXAMPLE suzanne)
 
 file(GLOB UTIL_SRC "examples/raylib_utils/*.c")
 add_executable(${PROJECT_NAME} examples/${EXAMPLE}.c ${UTIL_SRC} minitracer.c)
