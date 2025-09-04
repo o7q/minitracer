@@ -7,7 +7,7 @@ int main(void)
 {
     int width = 320;
     int height = 180;
-    int render_scale = 4; // scales render width and height
+    int render_scale = 1; // scales render width and height
     int render_width = width * render_scale;
     int render_height = height * render_scale;
     float camera_speed = 0.025f * render_scale; // scale speed with render scale to account for lag
@@ -16,6 +16,9 @@ int main(void)
 
     MT_World *world = mt_world_create(1000);
     MT_Camera *camera = mt_camera_create();
+    MT_Environment *environment = mt_environment_create();
+    environment->brightness = 0;
+    mt_world_set_environment(world, environment);
 
     MT_Renderer *renderer = mt_renderer_create(render_width, render_height, 16);
     mt_renderer_set_world(renderer, world);
@@ -31,7 +34,7 @@ int main(void)
     camera->rotation.x = 0.487;
     camera->rotation.y = -2.95;
     camera->rotation.z = 0;
-    camera->fov = 1.0f;
+    camera->fov = 1;
 
     MT_Material *mat_diffuse = mt_material_create();
     MT_Material *mat_glossy = mt_material_create();
@@ -62,16 +65,12 @@ int main(void)
 
     MT_Sphere *ball = mt_sphere_create((MT_Vec3){0, -1, 0}, 1.0f, mat_glass);
     mt_world_add_object(world, ball, MT_OBJECT_SPHERE);
-
     MT_Sphere *ball2 = mt_sphere_create((MT_Vec3){-2, -1, 2}, 1.0f, mat_glass_red);
     mt_world_add_object(world, ball2, MT_OBJECT_SPHERE);
-
     MT_Sphere *ball3 = mt_sphere_create((MT_Vec3){-2, -1, -2}, 1.0f, mat_glass_green);
     mt_world_add_object(world, ball3, MT_OBJECT_SPHERE);
-
     MT_Sphere *ball4 = mt_sphere_create((MT_Vec3){2, -1, -2}, 1.0f, mat_glass_blue);
     mt_world_add_object(world, ball4, MT_OBJECT_SPHERE);
-
     MT_Sphere *ball5 = mt_sphere_create((MT_Vec3){2, -1, 2}, 1.0f, mat_glossy);
     mt_world_add_object(world, ball5, MT_OBJECT_SPHERE);
 
@@ -92,7 +91,47 @@ int main(void)
             }
         }
 
-        mt_renderer_get_pixels(instance.render_pixels, renderer, 1.0f, 1);
+        if (IsKeyPressed(KEY_F1))
+        {
+            camera->position.x = -1.359;
+            camera->position.y = -4.5;
+            camera->position.z = -6.807;
+            camera->rotation.x = 0.487;
+            camera->rotation.y = -2.95;
+            camera->rotation.z = 0;
+            camera->fov = 1;
+            camera->aperture = 0;
+            camera->focus_distance = 0;
+            mt_renderer_reset_progressive(renderer);
+        }
+        if (IsKeyPressed(KEY_F2))
+        {
+            camera->position.x = 5.939;
+            camera->position.y = -1.35;
+            camera->position.z = 2.129;
+            camera->rotation.x = 0.037;
+            camera->rotation.y = -5.112;
+            camera->rotation.z = 0;
+            camera->fov = 1;
+            camera->aperture = 1.07999;
+            camera->focus_distance = 3.45;
+            mt_renderer_reset_progressive(renderer);
+        }
+        if (IsKeyPressed(KEY_F3))
+        {
+            camera->position.x = -3.794;
+            camera->position.y = -1.4;
+            camera->position.z = -3.701;
+            camera->rotation.x = 0.124;
+            camera->rotation.y = -8.662;
+            camera->rotation.z = 0;
+            camera->fov = 1;
+            camera->aperture = 1;
+            camera->focus_distance = 1.974999;
+            mt_renderer_reset_progressive(renderer);
+        }
+
+        mt_renderer_get_pixels(instance.render_pixels, renderer, 1.2f, 1);
         raylib_display(instance);
 
         raylib_handle_debug_input(instance, camera);

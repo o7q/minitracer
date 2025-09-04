@@ -7,7 +7,7 @@ int main(void)
 {
     int width = 180;
     int height = 180;
-    int render_scale = 4; // scales render width and height
+    int render_scale = 1; // scales render width and height
     int render_width = width * render_scale;
     int render_height = height * render_scale;
     float camera_speed = 0.025f * render_scale; // scale speed with render scale to account for lag
@@ -16,6 +16,9 @@ int main(void)
 
     MT_World *world = mt_world_create(1000);
     MT_Camera *camera = mt_camera_create();
+    MT_Environment *environment = mt_environment_create();
+    environment->brightness = 0;
+    mt_world_set_environment(world, environment);
 
     MT_Renderer *renderer = mt_renderer_create(render_width, render_height, 16);
     mt_renderer_set_world(renderer, world);

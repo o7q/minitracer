@@ -7,12 +7,12 @@ int main(void)
 {
     int width = 320;
     int height = 180;
-    int render_scale = 4; // scales render width and height
+    int render_scale = 1; // scales render width and height
     int render_width = width * render_scale;
     int render_height = height * render_scale;
     float camera_speed = 0.025f * render_scale; // scale speed with render scale to account for lag
     int b_log_samples = 1;
-    int b_enable_controls = 0;
+    int b_enable_controls = 1;
 
     MT_World *world = mt_world_create(1000);
     MT_Camera *camera = mt_camera_create();
@@ -64,16 +64,12 @@ int main(void)
 
     MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){0, 5 - 1 / 2.0f - 0.01, 0}, (MT_Vec3){0, 0.5, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse);
     mt_world_add_object(world, cube, MT_OBJECT_MESH);
-
     MT_Mesh *cube2 = mt_mesh_create_cube((MT_Vec3){0, 5 - 1.25f / 2.0f - 0.01, 3.5}, (MT_Vec3){0, -0.3, 0}, (MT_Vec3){1.25, 1.25, 1.25}, mat_glass2);
     mt_world_add_object(world, cube2, MT_OBJECT_MESH);
-
     MT_Sphere *sphere = mt_sphere_create((MT_Vec3){-2, 5 - 1, 2}, 1.0f, mat_glass);
     mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
-
     MT_Sphere *sphere2 = mt_sphere_create((MT_Vec3){2, 5 - 1, -2}, 1.0f, mat_glossy_green);
     mt_world_add_object(world, sphere2, MT_OBJECT_SPHERE);
-
     MT_Sphere *sphere3 = mt_sphere_create((MT_Vec3){2, 5 - 0.25f, 0}, 0.25f, mat_light2);
     mt_world_add_object(world, sphere3, MT_OBJECT_SPHERE);
 

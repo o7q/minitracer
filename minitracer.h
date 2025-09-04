@@ -191,6 +191,8 @@ typedef struct MT_Camera
     MT_Vec3 rotation;
 
     float fov;
+    float aperture;
+    float focus_distance;
 } MT_Camera;
 
 MT_Camera *mt_camera_create();
@@ -296,6 +298,22 @@ static inline MT_Vec3 mt__random_hemi_normal_distribution(MT_Vec3 normal)
         cos_theta};
 
     return mt_vec3_mult_v(local_dir, mt__sign(mt_vec3_dot(normal, local_dir)));
+}
+
+static inline MT_Vec3 mt__random_disk()
+{
+    MT_Vec3 out;
+    float u1 = (mt__random_float_thread() + 1.0f) / 2.0f;
+    float u2 = (mt__random_float_thread() + 1.0f) / 2.0f;
+
+    float theta = 2.0f * MT_PI * u1;
+    float r = sqrtf(u2);
+
+    out.x = r * cosf(theta);
+    out.y = r * sinf(theta);
+    out.z = 0.0f;
+
+    return out;
 }
 
 ///////////////////////////////
@@ -1087,11 +1105,11 @@ static void mt__ray_bounce(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
 ///////////////////////////////////////
 MT_Environment *mt_environment_create()
 {
-    MT_Environment *env = (MT_Environment *)malloc(sizeof(MT_Environment));
-    env->zenith_color = (MT_Vec3){0.682f, 0.827f, 0.957f};
-    env->horizon_color = (MT_Vec3){1.0f, 0.930f, 0.880f};
-    env->brightness = 1.0f;
-    return env;
+    MT_Environment *environment = (MT_Environment *)malloc(sizeof(MT_Environment));
+    environment->zenith_color = (MT_Vec3){0.682f, 0.827f, 0.957f};
+    environment->horizon_color = (MT_Vec3){1.0f, 0.930f, 0.880f};
+    environment->brightness = 1.0f;
+    return environment;
 }
 
 void mt_environment_delete(MT_Environment *environment)
@@ -1205,14 +1223,16 @@ MT_Camera *mt_camera_create()
     cam->position = (MT_Vec3){0, 0, 0};
     cam->rotation = (MT_Vec3){0, 0, 0};
     cam->fov = 1.0f;
+    cam->aperture = 0.0f;
+    cam->focus_distance = 10.0f;
     return cam;
 }
 
-void mt_camera_delete(MT_Camera *cam)
+void mt_camera_delete(MT_Camera *camera)
 {
-    if (cam)
+    if (camera)
     {
-        free(cam);
+        free(camera);
     }
 }
 
@@ -1358,8 +1378,21 @@ static void mt__render_chunk(void *data)
         for (int i = 0; i < samples; ++i)
         {
             MT_Ray ray;
-            ray.origin = rs->camera->position;
-            ray.direction = ray_direction;
+
+            // simulated depth of field
+            if (rs->camera->aperture > 0.0f)
+            {
+                MT_Vec3 lens_sample = mt_vec3_mult_v(mt__random_disk(), rs->camera->aperture / 2.0f);
+                MT_Vec3 focus_point = mt_vec3_add(rs->camera->position, mt_vec3_mult_v(ray_direction, rs->camera->focus_distance));
+                ray.origin = mt_vec3_add(rs->camera->position, lens_sample);
+                ray.direction = mt_vec3_normalize(mt_vec3_sub(focus_point, ray.origin));
+            }
+            else
+            {
+                ray.origin = rs->camera->position;
+                ray.direction = ray_direction;
+            }
+
             ray.throughput = (MT_Vec3){1, 1, 1};
             ray.accumulated_radiance = (MT_Vec3){0, 0, 0};
 

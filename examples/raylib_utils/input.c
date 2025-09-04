@@ -7,14 +7,16 @@ void raylib_handle_debug_input(RaylibInstance instance, MT_Camera *camera)
 {
     if (IsKeyPressed(KEY_ONE))
     {
-        printf("Camera Position: %.3f %.3f %.3f\nCamera Rotation: %.3f %.3f %.3f\nCamera FOV: %.3f\n\n",
+        printf("Position: %.3f %.3f %.3f\nRotation: %.3f %.3f %.3f\nFOV: %.3f\nAperture: %f\nFocus Distance: %f\n\n",
                camera->position.x,
                camera->position.y,
                camera->position.z,
                camera->rotation.x,
                camera->rotation.y,
                camera->rotation.z,
-               camera->fov);
+               camera->fov,
+               camera->aperture,
+               camera->focus_distance);
         fflush(stdout);
     }
     if (IsKeyPressed(KEY_TWO))
@@ -62,18 +64,46 @@ int raylib_handle_movement(MT_Camera *camera, float speed)
         camera->position.z -= speed * sinf(camera->rotation.y);
         movement_occurred = 1;
     }
-    if (IsKeyDown(KEY_Z))
+    if (IsKeyDown(KEY_KP_2))
     {
         camera->fov += 0.25f;
         movement_occurred = 1;
     }
-    if (IsKeyDown(KEY_X))
+    if (IsKeyDown(KEY_KP_1))
     {
         if (camera->fov > 0.25f)
         {
             camera->fov -= 0.25f;
             movement_occurred = 1;
         }
+    }
+    if (IsKeyDown(KEY_KP_5))
+    {
+        camera->focus_distance += speed;
+        movement_occurred = 1;
+    }
+    if (IsKeyDown(KEY_KP_4))
+    {
+        camera->focus_distance -= speed;
+        if (camera->focus_distance < 0.0f)
+        {
+            camera->focus_distance = 0.0f;
+        }
+        movement_occurred = 1;
+    }
+    if (IsKeyDown(KEY_KP_8))
+    {
+        camera->aperture += speed;
+        movement_occurred = 1;
+    }
+    if (IsKeyDown(KEY_KP_7))
+    {
+        camera->aperture -= speed;
+        if (camera->aperture < 0.0f)
+        {
+            camera->aperture = 0.0f;
+        }
+        movement_occurred = 1;
     }
     if (IsKeyDown(KEY_UP))
     {

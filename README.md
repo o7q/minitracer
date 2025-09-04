@@ -8,21 +8,22 @@ This is a zero-library raytracer, examples use raylib to display a window.
 ## Features
 - A multi-threaded progressive or still renderer
 - A STL model importer
-- Reflective, refractive, and emissive materials
 - A sky system
 - A BMP exporter
+- Reflective, refractive, and emissive materials
+- Simulated depth of field
 
 ## Screenshots
 
 <table>
     <tr>
         <td>
-            <img src="./docs/screenshots/cornell_box.bmp">
+            <img src="./docs/screenshots/cornell_box.png">
             <br>
             <a href="./examples/cornell_box.c">cornell_box.c</p>
         </td>
         <td>
-            <img src="./docs/screenshots/suzanne.bmp">
+            <img src="./docs/screenshots/suzanne.png">
             <br>
             <a href="./examples/suzanne.c">suzanne.c</p>
         </td>
@@ -31,17 +32,25 @@ This is a zero-library raytracer, examples use raylib to display a window.
 <table>
     <tr>
         <td>
-            <img src="./docs/screenshots/balls.bmp">
-            <br>
-            <a href="./examples/balls.c">balls.c</p>
+            <img src="./docs/screenshots/balls.png">
         </td>
         <td>
-            <img src="./docs/screenshots/infinite.bmp">
-            <br>
-            <a href="./examples/balls.c">infinite.c</p>
+            <img src="./docs/screenshots/balls2.png">
+        </td>
+        <td>
+            <img src="./docs/screenshots/balls3.png">
         </td>
     </tr>
 </table>
+<a href="./examples/balls.c">balls.c</p>
+<table>
+    <tr>
+        <td>
+            <img src="./docs/screenshots/infinite.png">
+        </td>
+    </tr>
+</table>
+<a href="./examples/balls.c">infinite.c</p>
 
 ---
 
