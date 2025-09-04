@@ -33,24 +33,30 @@ This is a zero-library raytracer, examples use raylib to display a window.
     <tr>
         <td>
             <img src="./docs/screenshots/balls.png">
+            <br>
+            <a href="./examples/balls.c">balls.c (Camera 1)</p>
         </td>
         <td>
             <img src="./docs/screenshots/balls2.png">
+            <br>
+            <a href="./examples/balls.c">balls.c (Camera 2)</p>
         </td>
         <td>
             <img src="./docs/screenshots/balls3.png">
+            <br>
+            <a href="./examples/balls.c">balls.c (Camera 3)</p>
         </td>
     </tr>
 </table>
-<a href="./examples/balls.c">balls.c</p>
 <table>
     <tr>
         <td>
             <img src="./docs/screenshots/infinite.png">
+            <br>
+            <a href="./examples/balls.c">infinite.c</p>
         </td>
     </tr>
 </table>
-<a href="./examples/balls.c">infinite.c</p>
 
 ---
 
