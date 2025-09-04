@@ -28,14 +28,20 @@ This is a zero-library raytracer, examples use raylib to display a window.
         </td>
     </tr>
 </table>
-
-<img src="./docs/screenshots/balls.bmp" width="400px">
-<br>
-<a href="./examples/balls.c">balls.c</p>
-
-<img src="./docs/screenshots/infinite.bmp">
-<br>
-<a href="./examples/balls.c">infinite.c</p>
+<table>
+    <tr>
+        <td>
+            <img src="./docs/screenshots/balls.bmp">
+            <br>
+            <a href="./examples/balls.c">balls.c</p>
+        </td>
+        <td>
+            <img src="./docs/screenshots/infinite.bmp">
+            <br>
+            <a href="./examples/balls.c">infinite.c</p>
+        </td>
+    </tr>
+</table>
 
 ---
 
