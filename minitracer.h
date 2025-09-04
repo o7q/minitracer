@@ -216,11 +216,17 @@ void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
 MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit);
+void mt_renderer_get_pixels(MT_Vec3 *pixels_out, MT_Renderer *renderer, float gamma, int b_as_8bit);
 int mt_renderer_get_width(MT_Renderer *renderer);
 int mt_renderer_get_height(MT_Renderer *renderer);
 int mt_renderer_get_progressive_index(MT_Renderer *renderer);
 
 void mt_render(MT_Renderer *renderer);
+
+///////////////////////////////
+// ========== BMP ========== //
+///////////////////////////////
+void mt_bmp_write(const char *path, MT_Vec3 *pixels, int width, int height);
 
 #endif // MINITRACER_H
 
@@ -1582,11 +1588,8 @@ void mt_renderer_delete(MT_Renderer *renderer)
     free(renderer);
 }
 
-MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit)
+static MT_Vec3 mt__renderer_pixel_apply_grade(MT_Vec3 pixel, float gamma, int b_as_8bit)
 {
-    int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
-    MT_Vec3 pixel = renderer->thread_station.pixels[index].color;
-
     pixel.x = powf(pixel.x, 1.0f / gamma);
     pixel.y = powf(pixel.y, 1.0f / gamma);
     pixel.z = powf(pixel.z, 1.0f / gamma);
@@ -1600,6 +1603,26 @@ MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, 
     }
 
     return pixel;
+}
+
+MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit)
+{
+    int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
+    MT_Vec3 pixel = renderer->thread_station.pixels[index].color;
+
+    return mt__renderer_pixel_apply_grade(pixel, gamma, b_as_8bit);
+}
+
+void mt_renderer_get_pixels(MT_Vec3 *pixels_out, MT_Renderer *renderer, float gamma, int b_as_8bit)
+{
+    for (int y = 0; y < renderer->settings.height; ++y)
+    {
+        for (int x = 0; x < renderer->settings.width; ++x)
+        {
+            int index = mt__index_2d_to_1d(x, y, renderer->settings.width);
+            pixels_out[index] = mt__renderer_pixel_apply_grade(renderer->thread_station.pixels[index].color, gamma, b_as_8bit);
+        }
+    }
 }
 
 int mt_renderer_get_width(MT_Renderer *renderer)
@@ -1645,6 +1668,64 @@ void mt_render(MT_Renderer *renderer)
     pthread_mutex_unlock(&renderer->thread_station.finished_mutex);
 
     ++renderer->thread_station.progressive_index;
+}
+
+///////////////////////////////
+// ========== BMP ========== //
+///////////////////////////////
+void mt_bmp_write(const char *path, MT_Vec3 *pixels, int width, int height)
+{
+    int row_padded = (width * 3 + 3) & (~3);
+    unsigned int file_size = 54 + (width * height * 3);
+
+    unsigned char header[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0};
+    header[2] = (unsigned char)(file_size);
+    header[3] = (unsigned char)(file_size >> 8);
+    header[4] = (unsigned char)(file_size >> 16);
+    header[5] = (unsigned char)(file_size >> 24);
+
+    unsigned int image_size = row_padded * height;
+    unsigned char dib[40] = {40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0};
+    dib[4] = (unsigned char)(width);
+    dib[5] = (unsigned char)(width >> 8);
+    dib[6] = (unsigned char)(width >> 16);
+    dib[7] = (unsigned char)(width >> 24);
+    dib[8] = (unsigned char)(height);
+    dib[9] = (unsigned char)(height >> 8);
+    dib[10] = (unsigned char)(height >> 16);
+    dib[11] = (unsigned char)(height >> 24);
+    dib[20] = (unsigned char)(image_size);
+    dib[21] = (unsigned char)(image_size >> 8);
+    dib[22] = (unsigned char)(image_size >> 16);
+    dib[23] = (unsigned char)(image_size >> 24);
+
+    FILE *fp = fopen(path, "wb");
+    fwrite(&header, 1, 14, fp);
+    fwrite(&dib, 1, 40, fp);
+
+    for (int y = height - 1; y >= 0; --y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            MT_Vec3 pixel = pixels[mt__index_2d_to_1d(x, y, width)];
+
+            unsigned char b = (unsigned char)pixel.z;
+            unsigned char g = (unsigned char)pixel.y;
+            unsigned char r = (unsigned char)pixel.x;
+
+            fwrite(&b, 1, 1, fp);
+            fwrite(&g, 1, 1, fp);
+            fwrite(&r, 1, 1, fp);
+        }
+
+        int padding = row_padded - (width * 3);
+        for (int i = 0; i < padding; ++i)
+        {
+            fputc(0, fp);
+        }
+    }
+
+    fclose(fp);
 }
 
 #endif // MINITRACER_IMPLEMENTATION

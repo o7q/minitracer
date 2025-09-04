@@ -7,10 +7,12 @@ int main(void)
 {
     int width = 180;
     int height = 180;
-    int render_scale = 2;                       // scales render width and height
+    int render_scale = 4; // scales render width and height
+    int render_width = width * render_scale;
+    int render_height = height * render_scale;
     float camera_speed = 0.025f * render_scale; // scale speed with render scale to account for lag
     int b_log_samples = 1;
-    int b_enable_controls = 0;
+    int b_enable_controls = 1;
 
     MT_World *world = mt_world_create(1000);
     MT_Camera *camera = mt_camera_create();
@@ -43,7 +45,7 @@ int main(void)
     mat_glossy->roughness = 0.1f;
     MT_Material *mat_light = mt_material_create();
     mat_light->color = (MT_Vec3){255 / 255.0f, 241 / 255.0f, 201 / 255.0f};
-    mat_light->emission_strength = 1.0f;
+    mat_light->emission_strength = 2.0f;
     MT_Material *mat_glass = mt_material_create();
     mat_glass->b_is_refractive = 1;
     mat_glass->ior = 1.5f;
@@ -72,15 +74,15 @@ int main(void)
     MT_Mesh *cube2 = mt_mesh_create_cube((MT_Vec3){-1, -3 / 2.0f - 0.05, -3}, (MT_Vec3){0, -0.35, 0}, (MT_Vec3){1.5, 3, 1.5}, mat_glass);
     mt_world_add_object(world, cube2, MT_OBJECT_MESH);
 
-    MT_Sphere* sphere = mt_sphere_create((MT_Vec3){-1, -0.65, -1}, 0.65f, mat_glossy);
+    MT_Sphere *sphere = mt_sphere_create((MT_Vec3){-1, -0.65, -1}, 0.65f, mat_glossy);
     mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
 
-    RaylibInstance instance = raylib_instance_create(width, height, render_scale, 2500, 200);
+    RaylibInstance instance = raylib_instance_create((MT_Vec3 *)malloc(sizeof(MT_Vec3) * render_width * render_height), render_width, render_height, render_scale, 2500, 200);
     while (!WindowShouldClose())
     {
         if (b_log_samples)
         {
-            printf("[Renderer] Sample: %d\n", mt_renderer_get_progressive_index(renderer));
+            printf("[Renderer] Sample: %d\n", mt_renderer_get_progressive_index(renderer) - 1);
         }
         mt_render(renderer);
 
@@ -92,7 +94,10 @@ int main(void)
             }
         }
 
-        raylib_render_pixels(instance, renderer);
+        mt_renderer_get_pixels(instance.render_pixels, renderer, 0.75f, 1);
+        raylib_display(instance);
+
+        raylib_handle_debug_input(instance, camera);
     }
 
     mt_renderer_delete(renderer);

@@ -4,6 +4,6 @@
 #include "instance.h"
 #include "../../minitracer.h"
 
-void raylib_render_pixels(RaylibInstance instance, MT_Renderer *renderer);
+void raylib_display(RaylibInstance instance);
 
 #endif

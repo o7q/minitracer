@@ -3,6 +3,26 @@
 #include <raylib.h>
 #include <math.h>
 
+void raylib_handle_debug_input(RaylibInstance instance, MT_Camera *camera)
+{
+    if (IsKeyPressed(KEY_ONE))
+    {
+        printf("Camera Position: %.3f %.3f %.3f\nCamera Rotation: %.3f %.3f %.3f\nCamera FOV: %.3f\n\n",
+               camera->position.x,
+               camera->position.y,
+               camera->position.z,
+               camera->rotation.x,
+               camera->rotation.y,
+               camera->rotation.z,
+               camera->fov);
+        fflush(stdout);
+    }
+    if (IsKeyPressed(KEY_TWO))
+    {
+        mt_bmp_write("screenshot.bmp", instance.render_pixels, instance.display_width, instance.display_height);
+    }
+}
+
 int raylib_handle_movement(MT_Camera *camera, float speed)
 {
     int movement_occurred = 0;
@@ -74,11 +94,6 @@ int raylib_handle_movement(MT_Camera *camera, float speed)
     {
         camera->rotation.y -= speed / camera->fov / 2.0f;
         movement_occurred = 1;
-    }
-    if (IsKeyDown(KEY_ONE))
-    {
-        printf("pos: %.3f %.3f %.3f\nrot: %.3f %.3f %.3f\nfov: %.3f\n\n", camera->position.x, camera->position.y, camera->position.z, camera->rotation.x, camera->rotation.y, camera->rotation.z, camera->fov);
-        fflush(stdout);
     }
 
     return movement_occurred;

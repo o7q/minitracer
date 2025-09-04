@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-RaylibInstance raylib_instance_create(int width, int height, int render_scale, int position_x, int position_y)
+RaylibInstance raylib_instance_create(MT_Vec3 *pixels_ptr, int render_width, int render_height, int render_scale, int position_x, int position_y)
 {
     int window_scale = 4 / render_scale;
     if (window_scale < 1)
@@ -10,25 +10,30 @@ RaylibInstance raylib_instance_create(int width, int height, int render_scale, i
         window_scale = 1;
     }
 
-    InitWindow(width * render_scale * window_scale, height * render_scale * window_scale, "minitracer");
+    InitWindow(render_width * window_scale, render_height * window_scale, "minitracer");
     SetWindowPosition(position_x, position_y);
 
-    int texture_width = width * render_scale;
-    int texture_height = height * render_scale;
-
     RaylibInstance instance;
+    instance.display_pixels = (Color *)malloc(sizeof(Color) * render_width * render_height);
+    instance.render_pixels = pixels_ptr;
+    instance.target = LoadRenderTexture(render_width, render_height);
+    instance.display_width = render_width;
+    instance.display_height = render_height;
     instance.window_scale = window_scale;
-    instance.pixels = (Color *)malloc(sizeof(Color) * texture_width * texture_height);
-    instance.target = LoadRenderTexture(texture_width, texture_height);
 
     return instance;
 }
 
 void raylib_instance_delete(RaylibInstance instance)
 {
-    if (instance.pixels)
+    if (instance.display_pixels)
     {
-        free(instance.pixels);
+        free(instance.display_pixels);
+    }
+
+    if (instance.render_pixels)
+    {
+        free(instance.render_pixels);
     }
 
     UnloadRenderTexture(instance.target);
