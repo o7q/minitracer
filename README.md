@@ -17,18 +17,28 @@ This is a zero-library raytracer, examples use raylib to display a window.
 <table>
     <tr>
         <td>
+            <img src="./docs/screenshots/cornell_box.bmp">
+            <br>
             <a href="./examples/cornell_box.c">cornell_box.c</p>
-            <img src="./docs/screenshots/cornell_box.bmp" width="250px">
+        </td>
+        <td>
+            <img src="./docs/screenshots/cornell_box.bmp">
+            <br>
+            <a href="./examples/cornell_box.c">cornell_box.c</p>
         </td>
     </tr>
     <tr>
         <td>
-            <img src="./docs/screenshots/balls.bmp">
+            <img src="./docs/screenshots/balls.bmp" width="400px">
+            <br>
+            <a href="./examples/balls.c">balls.c</p>
         </td>
     </tr>
     <tr>
         <td>
             <img src="./docs/screenshots/infinite.bmp">
+            <br>
+            <a href="./examples/balls.c">infinite.c</p>
         </td>
     </tr>
 </table>
