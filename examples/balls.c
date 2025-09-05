@@ -131,7 +131,7 @@ int main(void)
             mt_renderer_reset_progressive(renderer);
         }
 
-        mt_renderer_get_pixels(instance.render_pixels, renderer, 1.2f, 1);
+        mt_renderer_get_pixels(renderer, instance.render_pixels, 1.2f, 1);
         raylib_display(instance);
 
         raylib_handle_debug_input(instance, camera);

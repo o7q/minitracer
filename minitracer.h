@@ -218,7 +218,7 @@ void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
 MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit);
-void mt_renderer_get_pixels(MT_Vec3 *pixels_out, MT_Renderer *renderer, float gamma, int b_as_8bit);
+void mt_renderer_get_pixels(MT_Renderer *renderer, MT_Vec3 *pixels_out, float gamma, int b_as_8bit);
 int mt_renderer_get_width(MT_Renderer *renderer);
 int mt_renderer_get_height(MT_Renderer *renderer);
 int mt_renderer_get_progressive_index(MT_Renderer *renderer);
@@ -1646,7 +1646,7 @@ MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, 
     return mt__renderer_pixel_apply_grade(pixel, gamma, b_as_8bit);
 }
 
-void mt_renderer_get_pixels(MT_Vec3 *pixels_out, MT_Renderer *renderer, float gamma, int b_as_8bit)
+void mt_renderer_get_pixels(MT_Renderer *renderer, MT_Vec3 *pixels_out, float gamma, int b_as_8bit)
 {
     for (int y = 0; y < renderer->settings.height; ++y)
     {

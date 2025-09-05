@@ -88,7 +88,7 @@ int main(void)
             }
         }
 
-        mt_renderer_get_pixels(instance.render_pixels, renderer, 0.75f, 1);
+        mt_renderer_get_pixels(renderer, instance.render_pixels, 0.75f, 1);
         raylib_display(instance);
 
         raylib_handle_debug_input(instance, camera);
