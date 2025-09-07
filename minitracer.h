@@ -204,8 +204,9 @@ void mt_renderer_set_world(MT_Renderer *renderer, MT_World *world);
 void mt_renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera);
 void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
 void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
-void mt_renderer_set_progressive(MT_Renderer *renderer, int b_enabled);
-void mt_renderer_set_antialiasing(MT_Renderer *renderer, int b_enabled);
+void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable);
+void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable);
+void mt_renderer_enable_progressive(MT_Renderer *renderer, int b_enable);
 void mt_renderer_reset_progressive(MT_Renderer *renderer);
 void mt_renderer_delete(MT_Renderer *renderer);
 
@@ -1419,6 +1420,8 @@ static int mt__morton_compare(const void *a, const void *b)
 
 static int mt__morton_find_split(MT_BVHMorton *mortons, int start, int end)
 {
+    // int split = (start + end) / 2;
+    // return split;
     if (start == end)
     {
         return start;
@@ -1583,8 +1586,9 @@ typedef struct MT_RenderSettings
     int bounces;
     int samples;
 
-    int b_progressive;
     int b_antialias;
+    int b_use_bvh;
+    int b_progressive;
 } MT_RenderSettings;
 
 typedef struct MT_RenderPixel
@@ -1656,14 +1660,95 @@ static void mt__render_handle_sphere(MT_Ray *ray, MT_Sphere *sphere, MT_RayHit *
     }
 }
 
-static void mt__ray_bvh()
+static void mt__ray_bvh(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_Material *out_mat)
 {
+    MT_RayHit closest_hit = {0};
+    closest_hit.t = FLT_MAX;
+    MT_Material closest_mat = {0};
 
+    MT_BVHNode *stack[64];
+    int stack_ptr = 0;
+    stack[0] = world->bvh;
+    stack_ptr++;
+
+    while (stack_ptr > 0)
+    {
+        MT_BVHNode *node = stack[--stack_ptr];
+
+        if (!mt__ray_hit_bounds(ray, node->bounds))
+        {
+            continue;
+        }
+
+        if (node->leaf_object_index != -1)
+        {
+            MT_RayHit hit_info = {0};
+            hit_info.t = FLT_MAX;
+            MT_Material hit_mat = {0};
+
+            int index = node->leaf_object_index;
+            switch (world->objects_track[index])
+            {
+            case MT_OBJECT_TRI:
+                mt__render_handle_tri(ray, (MT_Tri *)world->objects[index], &hit_info, &hit_mat);
+                break;
+            case MT_OBJECT_MESH:
+                mt__render_handle_mesh(ray, (MT_Mesh *)world->objects[index], &hit_info, &hit_mat);
+                break;
+            case MT_OBJECT_SPHERE:
+                mt__render_handle_sphere(ray, (MT_Sphere *)world->objects[index], &hit_info, &hit_mat);
+                break;
+            }
+
+            if (hit_info.hit && hit_info.t < closest_hit.t)
+            {
+                closest_hit = hit_info;
+                closest_mat = hit_mat;
+            }
+        }
+        else
+        {
+            if (node->child_left && stack_ptr < 63)
+            {
+                stack[stack_ptr] = node->child_left;
+                stack_ptr++;
+            }
+            if (node->child_right && stack_ptr < 63)
+            {
+                stack[stack_ptr] = node->child_right;
+                stack_ptr++;
+            }
+        }
+    }
+
+    *out_hit = closest_hit;
+    *out_mat = closest_mat;
 }
 
-static void mt__ray_brute()
+static void mt__ray_brute(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_Material *out_mat)
 {
-    
+    MT_RayHit closest_hit = {0};
+    closest_hit.t = FLT_MAX;
+    MT_Material closest_mat = {0};
+
+    for (int k = 0; k < world->object_index; ++k)
+    {
+        switch (world->objects_track[k])
+        {
+        case MT_OBJECT_TRI:
+            mt__render_handle_tri(ray, (MT_Tri *)world->objects[k], &closest_hit, &closest_mat);
+            break;
+        case MT_OBJECT_MESH:
+            mt__render_handle_mesh(ray, (MT_Mesh *)world->objects[k], &closest_hit, &closest_mat);
+            break;
+        case MT_OBJECT_SPHERE:
+            mt__render_handle_sphere(ray, (MT_Sphere *)world->objects[k], &closest_hit, &closest_mat);
+            break;
+        }
+    }
+
+    *out_hit = closest_hit;
+    *out_mat = closest_mat;
 }
 
 static void mt__render_chunk(void *data)
@@ -1742,70 +1827,21 @@ static void mt__render_chunk(void *data)
 
             for (int j = 0; j < bounces; ++j)
             {
-                MT_RayHit closest_hit;
-                closest_hit.t = FLT_MAX;
-                MT_Material closest_mat = {0};
-                int found_hit = 0;
+                MT_RayHit hit = {0};
+                MT_Material mat = {0};
 
-                MT_BVHNode *stack[64];
-                int stack_ptr = 0;
-                stack[0] = rs->world->bvh;
-                stack_ptr++;
-
-                while (stack_ptr > 0)
+                if (rs->b_use_bvh && rs->world->bvh)
                 {
-                    MT_BVHNode *node = stack[--stack_ptr];
-
-                    if (!mt__ray_hit_bounds(&ray, node->bounds))
-                    {
-                        continue;
-                    }
-
-                    if (node->leaf_object_index != -1)
-                    {
-                        MT_RayHit hit_info = {0};
-                        hit_info.t = FLT_MAX;
-                        MT_Material hit_mat = {0};
-
-                        int index = node->leaf_object_index;
-                        switch (rs->world->objects_track[index])
-                        {
-                        case MT_OBJECT_TRI:
-                            mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[index], &hit_info, &hit_mat);
-                            break;
-                        case MT_OBJECT_MESH:
-                            mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[index], &hit_info, &hit_mat);
-                            break;
-                        case MT_OBJECT_SPHERE:
-                            mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[index], &hit_info, &hit_mat);
-                            break;
-                        }
-
-                        if (hit_info.hit && hit_info.t < closest_hit.t)
-                        {
-                            closest_hit = hit_info;
-                            closest_mat = hit_mat;
-                            found_hit = 1;
-                        }
-                    }
-                    else
-                    {
-                        if (node->child_left && stack_ptr < 63)
-                        {
-                            stack[stack_ptr] = node->child_left;
-                            stack_ptr++;
-                        }
-                        if (node->child_right && stack_ptr < 63)
-                        {
-                            stack[stack_ptr] = node->child_right;
-                            stack_ptr++;
-                        }
-                    }
+                    mt__ray_bvh(rs->world, &ray, &hit, &mat);
+                }
+                else
+                {
+                    mt__ray_brute(rs->world, &ray, &hit, &mat);
                 }
 
-                if (found_hit)
+                if (hit.hit)
                 {
-                    mt__ray_bounce(&ray, &closest_hit, &closest_mat);
+                    mt__ray_bounce(&ray, &hit, &mat);
                 }
                 else
                 {
@@ -1872,7 +1908,7 @@ static void *mt__worker_thread(void *data)
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
     MT_Renderer *renderer = (MT_Renderer *)malloc(sizeof(MT_Renderer));
-    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 1, 1}};
+    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 1, 0, 1}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
     renderer->render_chunks = (MT_RenderChunk **)malloc(sizeof(MT_RenderChunk *) * thread_count);
@@ -1936,15 +1972,20 @@ void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces)
     renderer->settings.bounces = bounces;
 }
 
-void mt_renderer_set_progressive(MT_Renderer *renderer, int b_enabled)
+void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable)
 {
-    renderer->settings.b_progressive = b_enabled;
-    renderer->thread_station.progressive_index = 1;
+    renderer->settings.b_antialias = b_enable;
 }
 
-void mt_renderer_set_antialiasing(MT_Renderer *renderer, int b_enabled)
+void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable)
 {
-    renderer->settings.b_antialias = b_enabled;
+    renderer->settings.b_use_bvh = b_enable;
+}
+
+void mt_renderer_enable_progressive(MT_Renderer *renderer, int b_enable)
+{
+    renderer->settings.b_progressive = b_enable;
+    renderer->thread_station.progressive_index = 1;
 }
 
 void mt_renderer_reset_progressive(MT_Renderer *renderer)

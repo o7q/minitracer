@@ -19,8 +19,8 @@ int main(void)
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 64);
     mt_renderer_set_bounces(renderer, 4);
-    mt_renderer_set_progressive(renderer, 0);
-    mt_renderer_set_antialiasing(renderer, 1);
+    mt_renderer_enable_progressive(renderer, 0);
+    mt_renderer_enable_antialiasing(renderer, 1);
 
     MT_Material *mat_diffuse = mt_material_create();
     mat_diffuse->color = (MT_Vec3){1, 0, 0};

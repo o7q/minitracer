@@ -25,8 +25,8 @@ int main(void)
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 5000);
     mt_renderer_set_bounces(renderer, 64);
-    mt_renderer_set_progressive(renderer, 1);
-    mt_renderer_set_antialiasing(renderer, 1);
+    mt_renderer_enable_progressive(renderer, 1);
+    mt_renderer_enable_antialiasing(renderer, 1);
 
     camera->position.x = 0;
     camera->position.y = -2.475;

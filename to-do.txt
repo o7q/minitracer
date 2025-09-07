@@ -1,2 +1,0 @@
-- Add BMP rendering
-- Optimize using bounding volume hierarchies

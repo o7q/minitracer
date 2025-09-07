@@ -25,8 +25,9 @@ int main(void)
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 5000);
     mt_renderer_set_bounces(renderer, 64);
-    mt_renderer_set_progressive(renderer, 1);
-    mt_renderer_set_antialiasing(renderer, 1);
+    mt_renderer_enable_progressive(renderer, 1);
+    mt_renderer_enable_antialiasing(renderer, 1);
+    mt_renderer_enable_bvh(renderer, 1);
 
     camera->position.x = -1.359;
     camera->position.y = -40.5;
@@ -40,7 +41,7 @@ int main(void)
     MT_Material *mat_glossy = mt_material_create();
     mat_glossy->roughness = 0.0f;
     MT_Material *mat_light = mt_material_create();
-    mat_light->emission_strength = 10.0f;
+    mat_light->emission_strength = 20.0f;
     mat_light->color = (MT_Vec3){255 / 255.0f, 241 / 255.0f, 201 / 255.0f};
     MT_Material *mat_glass = mt_material_create();
     mat_glass->b_is_refractive = 1;
