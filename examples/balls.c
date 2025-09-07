@@ -24,7 +24,7 @@ int main(void)
     mt_renderer_set_world(renderer, world);
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 5000);
-    mt_renderer_set_bounces(renderer, 64);
+    mt_renderer_set_bounces(renderer, 8);
     mt_renderer_set_progressive(renderer, 1);
     mt_renderer_set_antialiasing(renderer, 1);
 
@@ -73,6 +73,8 @@ int main(void)
     mt_world_add_object(world, ball4, MT_OBJECT_SPHERE);
     MT_Sphere *ball5 = mt_sphere_create((MT_Vec3){2, -1, 2}, 1.0f, mat_glossy);
     mt_world_add_object(world, ball5, MT_OBJECT_SPHERE);
+    
+    mt_world_recalculate_bvh(world);
 
     RaylibInstance instance = raylib_instance_create((MT_Vec3 *)malloc(sizeof(MT_Vec3) * render_width * render_height), render_width, render_height, render_scale, 2500, 200);
     while (!WindowShouldClose())

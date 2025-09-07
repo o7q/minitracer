@@ -32,6 +32,8 @@ int main(void)
     MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){0, -0.5f, 0}, (MT_Vec3){0, MT_PI / 4.0f, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse);
     mt_world_add_object(world, cube, MT_OBJECT_MESH);
 
+    mt_world_recalculate_bvh(world);
+
     mt_render(renderer);
 
     MT_Vec3 *pixels = (MT_Vec3 *)malloc(sizeof(MT_Vec3) * width * height);

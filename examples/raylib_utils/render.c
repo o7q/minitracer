@@ -27,5 +27,10 @@ void raylib_display(RaylibInstance instance)
     Rectangle src = {0, 0, instance.display_width, instance.display_height};
     Rectangle dest = {0, 0, instance.display_width * instance.window_scale, instance.display_height * instance.window_scale};
     DrawTexturePro(instance.target.texture, src, dest, (Vector2){0, 0}, 0.0f, WHITE);
+
+    char fpsText[32];
+    sprintf(fpsText, "FPS: %d", GetFPS());
+            DrawText(fpsText, 0, 0, 20, GREEN);
+
     EndDrawing();
 }

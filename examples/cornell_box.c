@@ -71,6 +71,8 @@ int main(void)
     MT_Sphere *sphere = mt_sphere_create((MT_Vec3){-1, -0.65, -1}, 0.65f, mat_glossy);
     mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
 
+    mt_world_recalculate_bvh(world);
+
     RaylibInstance instance = raylib_instance_create((MT_Vec3 *)malloc(sizeof(MT_Vec3) * render_width * render_height), render_width, render_height, render_scale, 2500, 200);
     while (!WindowShouldClose())
     {

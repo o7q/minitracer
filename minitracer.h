@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <limits.h>
@@ -153,12 +154,6 @@ void mt_mesh_delete(MT_Mesh *mesh);
 MT_Sphere *mt_sphere_create(MT_Vec3 position, float radius, MT_Material *mat);
 void mt_sphere_delete(MT_Sphere *sphere);
 
-///////////////////////////////
-// ========== RAY ========== //
-///////////////////////////////
-typedef struct MT_Ray MT_Ray;
-typedef struct MT_RayHit MT_RayHit;
-
 ///////////////////////////////////////
 // ========== ENVIRONMENT ========== //
 ///////////////////////////////////////
@@ -180,6 +175,7 @@ typedef struct MT_World MT_World;
 MT_World *mt_world_create(unsigned int max_objects);
 void mt_world_add_object(MT_World *world, void *object, ObjectType object_type);
 void mt_world_set_environment(MT_World *world, MT_Environment *environment);
+void mt_world_recalculate_bvh(MT_World *world);
 void mt_world_delete(MT_World *world);
 
 //////////////////////////////////
@@ -201,10 +197,6 @@ void mt_camera_delete(MT_Camera *cam);
 //////////////////////////////////
 // ========== RENDER ========== //
 //////////////////////////////////
-typedef struct MT_RenderSettings MT_RenderSettings;
-typedef struct MT_RenderPixel MT_RenderPixel;
-typedef struct MT_RenderThreadStation MT_RenderThreadStation;
-typedef struct MT_RenderChunk MT_RenderChunk;
 typedef struct MT_Renderer MT_Renderer;
 
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count);
@@ -314,6 +306,14 @@ static inline MT_Vec3 mt__random_disk()
     out.z = 0.0f;
 
     return out;
+}
+
+static void mt__print_bits(uint32_t n, int bits)
+{
+    for (int i = bits - 1; i >= 0; --i)
+    {
+        putchar((n & (1U << i)) ? '1' : '0');
+    }
 }
 
 ///////////////////////////////
@@ -619,6 +619,7 @@ MT_Mesh *mt_mesh_create(unsigned int max_tris)
 {
     MT_Mesh *mesh = (MT_Mesh *)malloc(sizeof(MT_Mesh));
     mesh->tris = (MT_Tri **)malloc(sizeof(MT_Tri *) * max_tris);
+    mesh->origin_offset = (MT_Vec3){0, 0, 0};
     mesh->tri_index = 0;
     mesh->max_tris = max_tris;
     return mesh;
@@ -1057,7 +1058,6 @@ static void mt__ray_refract(MT_Ray *ray, MT_RayHit *hit, MT_Material *mat)
     }
     else // internal reflection
     {
-
         MT_Vec3 n = hit->normal;
         float d = mt_vec3_dot(ray->direction, n);
         ray->direction = mt_vec3_sub(ray->direction, mt_vec3_mult_v(n, 2.0f * d));
@@ -1129,6 +1129,30 @@ static void mt__ray_hit_environment(MT_Environment *env, MT_Ray *ray)
     ray->accumulated_radiance = mt_vec3_add(ray->accumulated_radiance, mt_vec3_mult(ray->throughput, color));
 }
 
+///////////////////////////////
+// ========== BVH ========== //
+///////////////////////////////
+typedef struct MT_Bounds
+{
+    MT_Vec3 start, end;
+} MT_Bounds;
+
+typedef struct MT_BVHMorton
+{
+    uint32_t morton_code;
+    int object_index;
+} MT_BVHMorton;
+
+typedef struct MT_BVHNode
+{
+    MT_Bounds bounds;
+
+    struct MT_BVHNode *child_left;
+    struct MT_BVHNode *child_right;
+
+    int leaf_object_index;
+} MT_BVHNode;
+
 /////////////////////////////////
 // ========== WORLD ========== //
 /////////////////////////////////
@@ -1136,12 +1160,12 @@ typedef struct MT_World
 {
     void **objects;
     ObjectType *objects_track;
+    MT_BVHNode *bvh;
 
     MT_Environment *environment;
 
     unsigned int object_index;
     unsigned int max_objects;
-
 } MT_World;
 
 MT_World *mt_world_create(unsigned int max_objects)
@@ -1212,6 +1236,316 @@ void mt_world_delete(MT_World *world)
     mt_environment_delete(world->environment);
 
     free(world);
+}
+
+/////////////////////////////////////////
+// ========== BVH FUNCTIONS ========== //
+/////////////////////////////////////////
+static MT_Bounds mt__bounds_create_invalid()
+{
+    MT_Bounds bounds;
+    bounds.start = (MT_Vec3){FLT_MAX, FLT_MAX, FLT_MAX};
+    bounds.end = (MT_Vec3){-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    return bounds;
+}
+
+// branchless slab collision
+// source: https://tavianator.com/2022/ray_box_boundary.html
+static int mt__point_in_bounds(MT_Vec3 p, MT_Bounds bounds)
+{
+    int x = p.x >= bounds.start.x && p.x <= bounds.end.x;
+    int y = p.y >= bounds.start.y && p.y <= bounds.end.y;
+    int z = p.z >= bounds.start.z && p.z <= bounds.end.z;
+
+    return x && y && z;
+}
+
+static int mt__ray_hit_bounds(const MT_Ray *ray, MT_Bounds bounds)
+{
+    float tmin = 0, tmax = FLT_MAX;
+
+    float i_dx = 1.0f / ray->direction.x;
+    float i_dy = 1.0f / ray->direction.y;
+    float i_dz = 1.0f / ray->direction.z;
+
+    float tx1 = (bounds.start.x - ray->origin.x) * i_dx;
+    float tx2 = (bounds.end.x - ray->origin.x) * i_dx;
+    tmin = fmaxf(tmin, fminf(tx1, tx2));
+    tmax = fminf(tmax, fmaxf(tx1, tx2));
+
+    float ty1 = (bounds.start.y - ray->origin.y) * i_dy;
+    float ty2 = (bounds.end.y - ray->origin.y) * i_dy;
+    tmin = fmaxf(tmin, fminf(ty1, ty2));
+    tmax = fminf(tmax, fmaxf(ty1, ty2));
+
+    float tz1 = (bounds.start.z - ray->origin.z) * i_dz;
+    float tz2 = (bounds.end.z - ray->origin.z) * i_dz;
+    tmin = fmaxf(tmin, fminf(tz1, tz2));
+    tmax = fminf(tmax, fmaxf(tz1, tz2));
+
+    return tmin < tmax;
+}
+
+static MT_Bounds mt__bounds_union(MT_Bounds a, MT_Bounds b)
+{
+    MT_Bounds out;
+    out.start.x = fminf(a.start.x, b.start.x);
+    out.start.y = fminf(a.start.y, b.start.y);
+    out.start.z = fminf(a.start.z, b.start.z);
+    out.end.x = fmaxf(a.end.x, b.end.x);
+    out.end.y = fmaxf(a.end.y, b.end.y);
+    out.end.z = fmaxf(a.end.z, b.end.z);
+    return out;
+}
+
+static void mt__bounds_shift_tri(MT_Tri *tri, MT_Bounds *out)
+{
+    for (int i = 0; i < 3; ++i)
+    {
+        out->start.x = fminf(out->start.x, tri->p[i].x);
+        out->start.y = fminf(out->start.y, tri->p[i].y);
+        out->start.z = fminf(out->start.z, tri->p[i].z);
+
+        out->end.x = fmaxf(out->end.x, tri->p[i].x);
+        out->end.y = fmaxf(out->end.y, tri->p[i].y);
+        out->end.z = fmaxf(out->end.z, tri->p[i].z);
+    }
+}
+
+static MT_Bounds mt__bounds_calculate_tri(MT_Tri *tri)
+{
+    MT_Bounds out = mt__bounds_create_invalid();
+    mt__bounds_shift_tri(tri, &out);
+    return out;
+}
+
+static void mt__bounds_shift_mesh(MT_Mesh *mesh, MT_Bounds *out)
+{
+    for (int i = 0; i < mesh->tri_index; ++i)
+    {
+        mt__bounds_shift_tri(mesh->tris[i], out);
+    }
+}
+
+static MT_Bounds mt__bounds_calculate_mesh(MT_Mesh *mesh)
+{
+    MT_Bounds out = mt__bounds_create_invalid();
+    mt__bounds_shift_mesh(mesh, &out);
+    return out;
+}
+
+static void mt__bounds_shift_sphere(MT_Sphere *sphere, MT_Bounds *out)
+{
+    float r = sphere->radius;
+    MT_Vec3 p = sphere->position;
+
+    MT_Vec3 s_min = (MT_Vec3){p.x - r, p.y - r, p.z - r};
+    MT_Vec3 s_max = (MT_Vec3){p.x + r, p.y + r, p.z + r};
+
+    out->start.x = fminf(out->start.x, s_min.x);
+    out->start.y = fminf(out->start.y, s_min.y);
+    out->start.z = fminf(out->start.z, s_min.z);
+
+    out->end.x = fmaxf(out->end.x, s_max.x);
+    out->end.y = fmaxf(out->end.y, s_max.y);
+    out->end.z = fmaxf(out->end.z, s_max.z);
+}
+
+static MT_Bounds mt__bounds_calculate_sphere(MT_Sphere *sphere)
+{
+    MT_Bounds out = mt__bounds_create_invalid();
+    mt__bounds_shift_sphere(sphere, &out);
+    return out;
+}
+
+static MT_Bounds mt__world_calculate_bounds(MT_World *world)
+{
+    MT_Bounds bounds = mt__bounds_create_invalid();
+
+    for (int i = 0; i < world->object_index; ++i)
+    {
+        switch (world->objects_track[i])
+        {
+        case MT_OBJECT_TRI:
+            mt__bounds_shift_tri((MT_Tri *)world->objects[i], &bounds);
+            break;
+        case MT_OBJECT_MESH:
+            mt__bounds_shift_mesh((MT_Mesh *)world->objects[i], &bounds);
+            break;
+        case MT_OBJECT_SPHERE:
+            mt__bounds_shift_sphere((MT_Sphere *)world->objects[i], &bounds);
+            break;
+        }
+    }
+
+    return bounds;
+}
+
+// morton numbers
+// source: https://stackoverflow.com/a/1024889
+static uint32_t mt__expand_bits10to30(uint32_t v)
+{
+    v = (v | (v << 16)) & 0x030000FF;
+    v = (v | (v << 8)) & 0x0300F00F;
+    v = (v | (v << 4)) & 0x030C30C3;
+    v = (v | (v << 2)) & 0x09249249;
+    return v;
+}
+
+static uint32_t mt__morton_code30(uint32_t x, uint32_t y, uint32_t z)
+{
+    uint32_t e_x = mt__expand_bits10to30(x);
+    uint32_t e_y = mt__expand_bits10to30(y);
+    uint32_t e_z = mt__expand_bits10to30(z);
+    return e_x | (e_y << 1) | (e_z << 2);
+}
+//
+
+static int mt__morton_compare(const void *a, const void *b)
+{
+    const MT_BVHMorton *m_a = (const MT_BVHMorton *)a;
+    const MT_BVHMorton *m_b = (const MT_BVHMorton *)b;
+
+    if (m_a->morton_code < m_b->morton_code)
+    {
+        return -1;
+    }
+    if (m_a->morton_code > m_b->morton_code)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+static int mt__morton_find_split(MT_BVHMorton *mortons, int start, int end)
+{
+    if (start == end)
+    {
+        return start;
+    }
+
+    uint32_t first_code = mortons[start].morton_code;
+    uint32_t last_code = mortons[end].morton_code;
+
+    if (first_code == last_code)
+    {
+        return (start + end) / 2;
+    }
+
+    int common_prefix = __builtin_clz(first_code ^ last_code);
+    int split = start;
+    int step = end - start;
+
+    do
+    {
+        step = (step + 1) >> 1;
+        int new_split = split + step;
+
+        if (new_split < end)
+        {
+            uint32_t split_code = mortons[new_split].morton_code;
+            if (__builtin_clz(first_code ^ split_code) > common_prefix)
+            {
+                split = new_split;
+            }
+        }
+    } while (step > 1);
+
+    return split;
+}
+
+static MT_BVHNode *mt__bvh_node_create(MT_World *world, MT_BVHMorton *mortons, int start, int end)
+{
+    MT_BVHNode *node = (MT_BVHNode *)malloc(sizeof(MT_BVHNode));
+
+    // determine if it will be a leaf node
+    if (start == end)
+    {
+        int object_index = mortons[start].object_index;
+        void *obj = world->objects[object_index];
+        MT_Bounds bounds;
+        switch (world->objects_track[object_index])
+        {
+        case MT_OBJECT_TRI:
+            bounds = mt__bounds_calculate_tri((MT_Tri *)obj);
+            break;
+        case MT_OBJECT_MESH:
+            bounds = mt__bounds_calculate_mesh((MT_Mesh *)obj);
+            break;
+        case MT_OBJECT_SPHERE:
+            bounds = mt__bounds_calculate_sphere((MT_Sphere *)obj);
+            break;
+        }
+
+        bounds.start = mt_vec3_sub_v(bounds.start, 0.1f);
+        bounds.end = mt_vec3_add_v(bounds.end, 0.1f);
+
+        node->bounds = bounds;
+        node->child_left = NULL;
+        node->child_right = NULL;
+        node->leaf_object_index = object_index;
+    }
+    else
+    {
+        int split_pos = mt__morton_find_split(mortons, start, end);
+
+        node->child_left = mt__bvh_node_create(world, mortons, start, split_pos);
+        node->child_right = mt__bvh_node_create(world, mortons, split_pos + 1, end);
+        node->bounds = mt__bounds_union(node->child_left->bounds, node->child_right->bounds);
+        node->leaf_object_index = -1;
+    }
+
+    return node;
+}
+
+void mt_world_recalculate_bvh(MT_World *world)
+{
+    MT_Bounds world_bounds = mt__world_calculate_bounds(world);
+
+    float bound_size_x = world_bounds.end.x - world_bounds.start.x;
+    float bound_size_y = world_bounds.end.y - world_bounds.start.y;
+    float bound_size_z = world_bounds.end.z - world_bounds.start.z;
+
+    // needs to be 2^10 for 10 bit morton codes
+    const int scale = 1023;
+
+    MT_BVHMorton *mortons = (MT_BVHMorton *)malloc(sizeof(MT_BVHMorton) * world->object_index);
+
+    for (int i = 0; i < world->object_index; ++i)
+    {
+        MT_Vec3 object_pos = {0};
+
+        switch (world->objects_track[i])
+        {
+        case MT_OBJECT_MESH:
+            MT_Mesh *mesh = (MT_Mesh *)world->objects[i];
+            object_pos = mesh->origin_offset;
+            break;
+        case MT_OBJECT_SPHERE:
+            MT_Sphere *sphere = (MT_Sphere *)world->objects[i];
+            object_pos = sphere->position;
+            break;
+        }
+
+        uint32_t x_rel = (uint32_t)fminf(scale, fmaxf(0, floorf((object_pos.x - world_bounds.start.x) / bound_size_x * scale)));
+        uint32_t y_rel = (uint32_t)fminf(scale, fmaxf(0, floorf((object_pos.y - world_bounds.start.y) / bound_size_y * scale)));
+        uint32_t z_rel = (uint32_t)fminf(scale, fmaxf(0, floorf((object_pos.z - world_bounds.start.z) / bound_size_z * scale)));
+
+        uint32_t morton = mt__morton_code30(x_rel, y_rel, z_rel);
+
+        mortons[i].morton_code = morton;
+        mortons[i].object_index = i;
+    }
+
+    qsort(mortons, world->object_index, sizeof(MT_BVHMorton), mt__morton_compare);
+
+    for (int i = 0; i < world->object_index; ++i)
+    {
+        mt__print_bits(mortons[i].morton_code, 30);
+        putchar('\n');
+    }
+
+    world->bvh = mt__bvh_node_create(world, mortons, 0, world->object_index - 1);
 }
 
 //////////////////////////////////
@@ -1322,6 +1656,16 @@ static void mt__render_handle_sphere(MT_Ray *ray, MT_Sphere *sphere, MT_RayHit *
     }
 }
 
+static void mt__ray_bvh()
+{
+
+}
+
+static void mt__ray_brute()
+{
+    
+}
+
 static void mt__render_chunk(void *data)
 {
     MT_RenderChunk *rc = (MT_RenderChunk *)data;
@@ -1398,29 +1742,70 @@ static void mt__render_chunk(void *data)
 
             for (int j = 0; j < bounces; ++j)
             {
-                MT_RayHit hit_info = {0};
-                hit_info.t = FLT_MAX;
-                MT_Material hit_mat = {0};
+                MT_RayHit closest_hit;
+                closest_hit.t = FLT_MAX;
+                MT_Material closest_mat = {0};
+                int found_hit = 0;
 
-                for (int k = 0; k < rs->world->object_index; ++k)
+                MT_BVHNode *stack[64];
+                int stack_ptr = 0;
+                stack[0] = rs->world->bvh;
+                stack_ptr++;
+
+                while (stack_ptr > 0)
                 {
-                    switch (rs->world->objects_track[k])
+                    MT_BVHNode *node = stack[--stack_ptr];
+
+                    if (!mt__ray_hit_bounds(&ray, node->bounds))
                     {
-                    case MT_OBJECT_TRI:
-                        mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[k], &hit_info, &hit_mat);
-                        break;
-                    case MT_OBJECT_MESH:
-                        mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[k], &hit_info, &hit_mat);
-                        break;
-                    case MT_OBJECT_SPHERE:
-                        mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[k], &hit_info, &hit_mat);
-                        break;
+                        continue;
+                    }
+
+                    if (node->leaf_object_index != -1)
+                    {
+                        MT_RayHit hit_info = {0};
+                        hit_info.t = FLT_MAX;
+                        MT_Material hit_mat = {0};
+
+                        int index = node->leaf_object_index;
+                        switch (rs->world->objects_track[index])
+                        {
+                        case MT_OBJECT_TRI:
+                            mt__render_handle_tri(&ray, (MT_Tri *)rs->world->objects[index], &hit_info, &hit_mat);
+                            break;
+                        case MT_OBJECT_MESH:
+                            mt__render_handle_mesh(&ray, (MT_Mesh *)rs->world->objects[index], &hit_info, &hit_mat);
+                            break;
+                        case MT_OBJECT_SPHERE:
+                            mt__render_handle_sphere(&ray, (MT_Sphere *)rs->world->objects[index], &hit_info, &hit_mat);
+                            break;
+                        }
+
+                        if (hit_info.hit && hit_info.t < closest_hit.t)
+                        {
+                            closest_hit = hit_info;
+                            closest_mat = hit_mat;
+                            found_hit = 1;
+                        }
+                    }
+                    else
+                    {
+                        if (node->child_left && stack_ptr < 63)
+                        {
+                            stack[stack_ptr] = node->child_left;
+                            stack_ptr++;
+                        }
+                        if (node->child_right && stack_ptr < 63)
+                        {
+                            stack[stack_ptr] = node->child_right;
+                            stack_ptr++;
+                        }
                     }
                 }
 
-                if (hit_info.hit)
+                if (found_hit)
                 {
-                    mt__ray_bounce(&ray, &hit_info, &hit_mat);
+                    mt__ray_bounce(&ray, &closest_hit, &closest_mat);
                 }
                 else
                 {
