@@ -2,8 +2,8 @@
 
 int main(void)
 {
-    int width = 320;
-    int height = 180;
+    int width = 1280;
+    int height = 720;
 
     MT_World *world = mt_world_create(1000);
     MT_Environment *environment = mt_environment_create();
@@ -14,13 +14,14 @@ int main(void)
     camera->position.z = 4;
     camera->position.y = -0.5f;
 
-    MT_Renderer *renderer = mt_renderer_create(width, height, 16);
+    MT_Renderer *renderer = mt_renderer_create(width, height, 4);
     mt_renderer_set_world(renderer, world);
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 64);
     mt_renderer_set_bounces(renderer, 4);
-    mt_renderer_enable_progressive(renderer, 0);
+    mt_renderer_enable_progressive(renderer, 0); // disable progressive rendering
     mt_renderer_enable_antialiasing(renderer, 1);
+    mt_renderer_enable_bvh(renderer, 0); // disable bvh optimization, bottlenecks small scenes
 
     MT_Material *mat_diffuse = mt_material_create();
     mat_diffuse->color = (MT_Vec3){1, 0, 0};
@@ -40,5 +41,11 @@ int main(void)
     mt_renderer_get_pixels(renderer, pixels, 1.0f, 1);
     mt_bmp_write("render.bmp", pixels, width, height);
 
+    mt_renderer_delete(renderer);
+    mt_world_delete(world);
+    mt_camera_delete(camera);
+    mt_material_delete(mat_diffuse);
+    mt_material_delete(mat_glossy);
+    
     return 0;
 }

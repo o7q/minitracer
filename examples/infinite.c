@@ -27,6 +27,7 @@ int main(void)
     mt_renderer_set_bounces(renderer, 32);
     mt_renderer_enable_progressive(renderer, 1);
     mt_renderer_enable_antialiasing(renderer, 1);
+    mt_renderer_enable_bvh(renderer, 0);
 
     camera->position.x = 4.675;
     camera->position.y = 3.4;
@@ -101,6 +102,13 @@ int main(void)
     mt_renderer_delete(renderer);
     mt_world_delete(world);
     mt_camera_delete(camera);
+    mt_material_delete(mat_diffuse);
+    mt_material_delete(mat_glass);
+    mt_material_delete(mat_glass2);
+    mt_material_delete(mat_glossy);
+    mt_material_delete(mat_glossy_green);
+    mt_material_delete(mat_light);
+    mt_material_delete(mat_light2);
 
     raylib_instance_delete(instance);
 

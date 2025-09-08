@@ -29,6 +29,11 @@ int raylib_handle_movement(MT_Camera *camera, float speed)
 {
     int movement_occurred = 0;
 
+    if (IsKeyDown(KEY_LEFT_CONTROL))
+    {
+        speed *= 5;
+    }
+
     if (IsKeyDown(KEY_SPACE))
     {
         camera->position.y -= speed;

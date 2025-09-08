@@ -29,57 +29,47 @@ int main(void)
     mt_renderer_enable_antialiasing(renderer, 1);
     mt_renderer_enable_bvh(renderer, 1);
 
-    camera->position.x = -1.359;
-    camera->position.y = -40.5;
-    camera->position.z = -6.807;
-    camera->rotation.x = 0.487;
-    camera->rotation.y = -2.95;
+    camera->position.x = 14.178;
+    camera->position.y = 1.525;
+    camera->position.z = 12.026;
+    camera->rotation.x = -0.075;
+    camera->rotation.y = -5.424;
     camera->rotation.z = 0;
     camera->fov = 1;
 
-    MT_Material *mat_diffuse = mt_material_create();
+    MT_Material *mat_diffuse_red = mt_material_create();
+    mat_diffuse_red->color = (MT_Vec3){1, 0.5, 0.5};
     MT_Material *mat_glossy = mt_material_create();
-    mat_glossy->roughness = 0.0f;
-    MT_Material *mat_light = mt_material_create();
-    mat_light->emission_strength = 20.0f;
-    mat_light->color = (MT_Vec3){255 / 255.0f, 241 / 255.0f, 201 / 255.0f};
+    mat_glossy->roughness = 0.05f;
+    MT_Material *mat_glossy_green = mt_material_create();
+    mat_glossy_green->color = (MT_Vec3){0.5, 1, 0.5};
+    mat_glossy_green->roughness = 0;
     MT_Material *mat_glass = mt_material_create();
+    mat_glass->color = (MT_Vec3){0.5, 0.5, 1};
+    mat_glass->roughness = 0;
     mat_glass->b_is_refractive = 1;
-    mat_glass->ior = 1.5f;
-    MT_Material *mat_glass_red = mt_material_create();
-    mat_glass_red->b_is_refractive = 1;
-    mat_glass_red->ior = 1.5f;
-    mat_glass_red->color = (MT_Vec3){1.0f, 0.5f, 0.5f};
-    MT_Material *mat_glass_green = mt_material_create();
-    mat_glass_green->b_is_refractive = 1;
-    mat_glass_green->ior = 1.5f;
-    mat_glass_green->color = (MT_Vec3){0.5f, 1.0f, 0.5f};
-    MT_Material *mat_glass_blue = mt_material_create();
-    mat_glass_blue->b_is_refractive = 1;
-    mat_glass_blue->ior = 1.5f;
-    mat_glass_blue->color = (MT_Vec3){0.5f, 0.5f, 1.0f};
+    mat_glass->ior = 1.1f;
+    MT_Material *mat_light = mt_material_create();
+    mat_light->emission_strength = 50.0f;
+    mat_light->color = (MT_Vec3){0.5, 1, 0.5};
 
-    MT_Mesh *light = mt_mesh_create_plane((MT_Vec3){0, -4.9, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){2.5, 1, 2.5}, mat_light);
-    mt_world_add_object(world, light, MT_OBJECT_MESH);
+    MT_Sphere *sphere = mt_sphere_create((MT_Vec3){0, 0, 25}, 10.0f, mat_glossy_green);
+    mt_world_add_object(world, sphere, MT_OBJECT_SPHERE);
 
-    MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){5, 0, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){3, 1, 2.5}, mat_diffuse);
-    mt_world_add_object(world, cube, MT_OBJECT_MESH);
+    MT_Sphere *sphere2 = mt_sphere_create((MT_Vec3){0, -20, 25}, 10.0f, mat_glass);
+    mt_world_add_object(world, sphere2, MT_OBJECT_SPHERE);
 
-    MT_Sphere *ball = mt_sphere_create((MT_Vec3){0, -1, 0}, 1.0f, mat_glass);
-    mt_world_add_object(world, ball, MT_OBJECT_SPHERE);
-    MT_Sphere *ball2 = mt_sphere_create((MT_Vec3){-2, -1, 2}, 1.0f, mat_glass_red);
-    mt_world_add_object(world, ball2, MT_OBJECT_SPHERE);
+    MT_Mesh *floor = mt_mesh_create_plane((MT_Vec3){0, 15, 0}, (MT_Vec3){0, 0, 0}, (MT_Vec3){100, 1, 100}, mat_glossy);
+    mt_world_add_object(world, floor, MT_OBJECT_MESH);
 
     mt_random_init();
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 500; ++i)
     {
-        MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){mt_random_float() * 10, mt_random_float() * 10, mt_random_float() * 10}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse);
+        MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){mt_random_float() * 10, mt_random_float() * 10, mt_random_float() * 10}, (MT_Vec3){0, 0, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse_red);
         mt_world_add_object(world, cube, MT_OBJECT_MESH);
     }
 
     mt_world_recalculate_bvh(world);
-
-    // return 0;
 
     RaylibInstance instance = raylib_instance_create((MT_Vec3 *)malloc(sizeof(MT_Vec3) * render_width * render_height), render_width, render_height, render_scale, 2500, 200);
     while (!WindowShouldClose())
@@ -107,6 +97,11 @@ int main(void)
     mt_renderer_delete(renderer);
     mt_world_delete(world);
     mt_camera_delete(camera);
+    mt_material_delete(mat_diffuse_red);
+    mt_material_delete(mat_glass);
+    mt_material_delete(mat_glossy);
+    mt_material_delete(mat_glossy_green);
+    mt_material_delete(mat_light);
 
     raylib_instance_delete(instance);
 

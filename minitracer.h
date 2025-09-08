@@ -111,7 +111,6 @@ void mt_material_delete(MT_Material *material);
 //////////////////////////////////
 typedef enum ObjectType
 {
-    MT_OBJECT_TRI,
     MT_OBJECT_MESH,
     MT_OBJECT_SPHERE
 } ObjectType;
@@ -135,10 +134,6 @@ typedef struct MT_Sphere
     MT_Material *mat;
 } MT_Sphere;
 
-MT_Tri *mt_tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat);
-void mt_tri_delete(MT_Tri *tri);
-void mt_tri_recalculate_normals(MT_Tri *tri);
-
 MT_Mesh *mt_mesh_create(unsigned int max_tris);
 MT_Mesh *mt_mesh_create_plane(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material);
 MT_Mesh *mt_mesh_create_cube(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale, MT_Material *material);
@@ -149,10 +144,8 @@ void mt_mesh_move(MT_Mesh *mesh, MT_Vec3 position);
 void mt_mesh_rotate(MT_Mesh *mesh, MT_Vec3 rotation);
 void mt_mesh_scale(MT_Mesh *mesh, MT_Vec3 scale);
 void mt_mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_Vec3 scale);
-void mt_mesh_delete(MT_Mesh *mesh);
 
 MT_Sphere *mt_sphere_create(MT_Vec3 position, float radius, MT_Material *mat);
-void mt_sphere_delete(MT_Sphere *sphere);
 
 ///////////////////////////////////////
 // ========== ENVIRONMENT ========== //
@@ -165,7 +158,6 @@ typedef struct MT_Environment
 } MT_Environment;
 
 MT_Environment *mt_environment_create();
-void mt_environment_delete(MT_Environment *environment);
 
 /////////////////////////////////
 // ========== WORLD ========== //
@@ -204,10 +196,10 @@ void mt_renderer_set_world(MT_Renderer *renderer, MT_World *world);
 void mt_renderer_set_camera(MT_Renderer *renderer, MT_Camera *camera);
 void mt_renderer_set_samples(MT_Renderer *renderer, unsigned int samples);
 void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces);
-void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable);
-void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable);
 void mt_renderer_enable_progressive(MT_Renderer *renderer, int b_enable);
 void mt_renderer_reset_progressive(MT_Renderer *renderer);
+void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable);
+void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable);
 void mt_renderer_delete(MT_Renderer *renderer);
 
 MT_Vec3 mt_renderer_get_pixel(MT_Renderer *renderer, int x, int y, float gamma, int b_as_8bit);
@@ -309,7 +301,7 @@ static inline MT_Vec3 mt__random_disk()
     return out;
 }
 
-static void mt__print_bits(uint32_t n, int bits)
+static void mt__debug_print_bits(uint32_t n, int bits)
 {
     for (int i = bits - 1; i >= 0; --i)
     {
@@ -390,31 +382,9 @@ MT_Vec3 mt_vec3_negate(MT_Vec3 a)
 
 MT_Vec3 mt_vec3_clamp(MT_Vec3 a, float min, float max)
 {
-    if (a.x < min)
-    {
-        a.x = min;
-    }
-    if (a.x > max)
-    {
-        a.x = max;
-    }
-    if (a.y < min)
-    {
-        a.y = min;
-    }
-    if (a.y > max)
-    {
-        a.y = max;
-    }
-    if (a.z < min)
-    {
-        a.z = min;
-    }
-    if (a.z > max)
-    {
-        a.z = max;
-    }
-
+    a.x = fminf(max, fmaxf(a.x, min));
+    a.y = fminf(max, fmaxf(a.y, min));
+    a.z = fminf(max, fmaxf(a.z, min));
     return a;
 }
 
@@ -583,7 +553,7 @@ typedef struct MT_Mesh
     unsigned int tri_index;
 } MT_Mesh;
 
-void mt_tri_recalculate_normals(MT_Tri *tri)
+static void mt__tri_recalculate_normals(MT_Tri *tri)
 {
     MT_Vec3 u = mt_vec3_sub(tri->p[1], tri->p[0]);
     MT_Vec3 v = mt_vec3_sub(tri->p[2], tri->p[0]);
@@ -595,7 +565,7 @@ void mt_tri_recalculate_normals(MT_Tri *tri)
     tri->p_n[2] = normal;
 }
 
-MT_Tri *mt_tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat)
+static MT_Tri *mt__tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat)
 {
     MT_Tri *tri = (MT_Tri *)malloc(sizeof(MT_Tri));
     tri->p[0] = p1;
@@ -603,17 +573,9 @@ MT_Tri *mt_tri_create(MT_Vec3 p1, MT_Vec3 p2, MT_Vec3 p3, MT_Material *mat)
     tri->p[2] = p3;
     tri->mat = mat;
 
-    mt_tri_recalculate_normals(tri);
+    mt__tri_recalculate_normals(tri);
 
     return tri;
-}
-
-void mt_tri_delete(MT_Tri *tri)
-{
-    if (tri)
-    {
-        free(tri);
-    }
 }
 
 MT_Mesh *mt_mesh_create(unsigned int max_tris)
@@ -630,8 +592,8 @@ MT_Mesh *mt_mesh_create_plane(MT_Vec3 position, MT_Vec3 rotation, MT_Vec3 scale,
 {
     MT_Mesh *plane = mt_mesh_create(2);
 
-    MT_Tri *t1 = mt_tri_create((MT_Vec3){-0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, 0.5f}, material);
-    MT_Tri *t2 = mt_tri_create((MT_Vec3){0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, -0.5f}, material);
+    MT_Tri *t1 = mt__tri_create((MT_Vec3){-0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, 0.5f}, material);
+    MT_Tri *t2 = mt__tri_create((MT_Vec3){0.5f, 0, 0.5f}, (MT_Vec3){-0.5f, 0, -0.5f}, (MT_Vec3){0.5f, 0, -0.5f}, material);
     mt_mesh_add_tri(plane, t1);
     mt_mesh_add_tri(plane, t2);
 
@@ -721,7 +683,7 @@ MT_Mesh *mt_mesh_create_from_stl(const char *path, MT_Vec3 position, MT_Vec3 rot
         {
             tri->mat = material;
 
-            mt_tri_recalculate_normals(tri);
+            mt__tri_recalculate_normals(tri);
             mt_mesh_add_tri(stl_mesh, tri);
             tri = (MT_Tri *)malloc(sizeof(MT_Tri));
             v_i = 0;
@@ -749,7 +711,7 @@ void mt_mesh_recalculate_normals(MT_Mesh *mesh)
 {
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        mt_tri_recalculate_normals(mesh->tris[i]);
+        mt__tri_recalculate_normals(mesh->tris[i]);
     }
 }
 
@@ -849,28 +811,6 @@ void mt_mesh_transform(MT_Mesh *mesh, MT_Vec3 translation, MT_Vec3 rotation, MT_
     mesh->origin_offset = mt_vec3_add(mesh->origin_offset, translation);
 }
 
-void mt_mesh_delete(MT_Mesh *mesh)
-{
-    if (!mesh)
-    {
-        return;
-    }
-
-    if (mesh->tris)
-    {
-        for (int i = 0; i < mesh->tri_index; ++i)
-        {
-            if (mesh->tris[i])
-            {
-                free(mesh->tris[i]);
-            }
-        }
-        free(mesh->tris);
-    }
-
-    free(mesh);
-}
-
 MT_Sphere *mt_sphere_create(MT_Vec3 position, float radius, MT_Material *mat)
 {
     MT_Sphere *sphere = (MT_Sphere *)malloc(sizeof(MT_Sphere));
@@ -878,14 +818,6 @@ MT_Sphere *mt_sphere_create(MT_Vec3 position, float radius, MT_Material *mat)
     sphere->radius = radius;
     sphere->mat = mat;
     return sphere;
-}
-
-void mt_sphere_delete(MT_Sphere *sphere)
-{
-    if (sphere)
-    {
-        free(sphere);
-    }
 }
 
 ///////////////////////////////
@@ -1113,14 +1045,6 @@ MT_Environment *mt_environment_create()
     return environment;
 }
 
-void mt_environment_delete(MT_Environment *environment)
-{
-    if (environment)
-    {
-        free(environment);
-    }
-}
-
 static void mt__ray_hit_environment(MT_Environment *env, MT_Ray *ray)
 {
     MT_Vec3 unit_direction = mt_vec3_negate(mt_vec3_normalize(ray->direction));
@@ -1174,6 +1098,7 @@ MT_World *mt_world_create(unsigned int max_objects)
     MT_World *world = (MT_World *)malloc(sizeof(MT_World));
     world->objects = (void **)malloc(sizeof(void *) * max_objects);
     world->objects_track = (ObjectType *)malloc(sizeof(ObjectType) * max_objects);
+    world->bvh = NULL;
     world->environment = NULL;
     world->object_index = 0;
     world->max_objects = max_objects;
@@ -1197,6 +1122,57 @@ void mt_world_set_environment(MT_World *world, MT_Environment *environment)
     world->environment = environment;
 }
 
+static void mt__world_bvh_delete(MT_BVHNode *bvh)
+{
+    if (!bvh)
+    {
+        return;
+    }
+
+    mt__world_bvh_delete(bvh->child_left);
+    mt__world_bvh_delete(bvh->child_right);
+
+    free(bvh);
+}
+
+static void mt__world_mesh_delete(MT_Mesh *mesh)
+{
+    if (!mesh)
+    {
+        return;
+    }
+
+    if (mesh->tris)
+    {
+        for (int i = 0; i < mesh->tri_index; ++i)
+        {
+            if (mesh->tris[i])
+            {
+                free(mesh->tris[i]);
+            }
+        }
+        free(mesh->tris);
+    }
+
+    free(mesh);
+}
+
+static void mt__world_sphere_delete(MT_Sphere *sphere)
+{
+    if (sphere)
+    {
+        free(sphere);
+    }
+}
+
+void mt__environment_delete(MT_Environment *environment)
+{
+    if (environment)
+    {
+        free(environment);
+    }
+}
+
 void mt_world_delete(MT_World *world)
 {
     if (!world)
@@ -1215,14 +1191,11 @@ void mt_world_delete(MT_World *world)
 
             switch (world->objects_track[i])
             {
-            case MT_OBJECT_TRI:
-                mt_tri_delete(world->objects[i]);
-                break;
             case MT_OBJECT_MESH:
-                mt_mesh_delete(world->objects[i]);
+                mt__world_mesh_delete(world->objects[i]);
                 break;
             case MT_OBJECT_SPHERE:
-                mt_sphere_delete(world->objects[i]);
+                mt__world_sphere_delete(world->objects[i]);
                 break;
             }
         }
@@ -1234,7 +1207,12 @@ void mt_world_delete(MT_World *world)
         free(world->objects_track);
     }
 
-    mt_environment_delete(world->environment);
+    mt__environment_delete(world->environment);
+
+    if (world->bvh)
+    {
+        mt__world_bvh_delete(world->bvh);
+    }
 
     free(world);
 }
@@ -1299,32 +1277,21 @@ static MT_Bounds mt__bounds_union(MT_Bounds a, MT_Bounds b)
     return out;
 }
 
-static void mt__bounds_shift_tri(MT_Tri *tri, MT_Bounds *out)
-{
-    for (int i = 0; i < 3; ++i)
-    {
-        out->start.x = fminf(out->start.x, tri->p[i].x);
-        out->start.y = fminf(out->start.y, tri->p[i].y);
-        out->start.z = fminf(out->start.z, tri->p[i].z);
-
-        out->end.x = fmaxf(out->end.x, tri->p[i].x);
-        out->end.y = fmaxf(out->end.y, tri->p[i].y);
-        out->end.z = fmaxf(out->end.z, tri->p[i].z);
-    }
-}
-
-static MT_Bounds mt__bounds_calculate_tri(MT_Tri *tri)
-{
-    MT_Bounds out = mt__bounds_create_invalid();
-    mt__bounds_shift_tri(tri, &out);
-    return out;
-}
-
 static void mt__bounds_shift_mesh(MT_Mesh *mesh, MT_Bounds *out)
 {
     for (int i = 0; i < mesh->tri_index; ++i)
     {
-        mt__bounds_shift_tri(mesh->tris[i], out);
+        MT_Tri *tri = mesh->tris[i];
+        for (int i = 0; i < 3; ++i)
+        {
+            out->start.x = fminf(out->start.x, tri->p[i].x);
+            out->start.y = fminf(out->start.y, tri->p[i].y);
+            out->start.z = fminf(out->start.z, tri->p[i].z);
+
+            out->end.x = fmaxf(out->end.x, tri->p[i].x);
+            out->end.y = fmaxf(out->end.y, tri->p[i].y);
+            out->end.z = fmaxf(out->end.z, tri->p[i].z);
+        }
     }
 }
 
@@ -1367,9 +1334,6 @@ static MT_Bounds mt__world_calculate_bounds(MT_World *world)
     {
         switch (world->objects_track[i])
         {
-        case MT_OBJECT_TRI:
-            mt__bounds_shift_tri((MT_Tri *)world->objects[i], &bounds);
-            break;
         case MT_OBJECT_MESH:
             mt__bounds_shift_mesh((MT_Mesh *)world->objects[i], &bounds);
             break;
@@ -1420,8 +1384,6 @@ static int mt__morton_compare(const void *a, const void *b)
 
 static int mt__morton_find_split(MT_BVHMorton *mortons, int start, int end)
 {
-    // int split = (start + end) / 2;
-    // return split;
     if (start == end)
     {
         return start;
@@ -1469,9 +1431,6 @@ static MT_BVHNode *mt__bvh_node_create(MT_World *world, MT_BVHMorton *mortons, i
         MT_Bounds bounds;
         switch (world->objects_track[object_index])
         {
-        case MT_OBJECT_TRI:
-            bounds = mt__bounds_calculate_tri((MT_Tri *)obj);
-            break;
         case MT_OBJECT_MESH:
             bounds = mt__bounds_calculate_mesh((MT_Mesh *)obj);
             break;
@@ -1503,6 +1462,11 @@ static MT_BVHNode *mt__bvh_node_create(MT_World *world, MT_BVHMorton *mortons, i
 
 void mt_world_recalculate_bvh(MT_World *world)
 {
+    if (world->object_index <= 0)
+    {
+        return;
+    }
+
     MT_Bounds world_bounds = mt__world_calculate_bounds(world);
 
     float bound_size_x = world_bounds.end.x - world_bounds.start.x;
@@ -1541,14 +1505,8 @@ void mt_world_recalculate_bvh(MT_World *world)
     }
 
     qsort(mortons, world->object_index, sizeof(MT_BVHMorton), mt__morton_compare);
-
-    for (int i = 0; i < world->object_index; ++i)
-    {
-        mt__print_bits(mortons[i].morton_code, 30);
-        putchar('\n');
-    }
-
     world->bvh = mt__bvh_node_create(world, mortons, 0, world->object_index - 1);
+    free(mortons);
 }
 
 //////////////////////////////////
@@ -1586,9 +1544,9 @@ typedef struct MT_RenderSettings
     int bounces;
     int samples;
 
+    int b_progressive;
     int b_antialias;
     int b_use_bvh;
-    int b_progressive;
 } MT_RenderSettings;
 
 typedef struct MT_RenderPixel
@@ -1669,11 +1627,12 @@ static void mt__ray_bvh(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_Mat
     MT_BVHNode *stack[64];
     int stack_ptr = 0;
     stack[0] = world->bvh;
-    stack_ptr++;
+    ++stack_ptr;
 
     while (stack_ptr > 0)
     {
-        MT_BVHNode *node = stack[--stack_ptr];
+        --stack_ptr;
+        MT_BVHNode *node = stack[stack_ptr];
 
         if (!mt__ray_hit_bounds(ray, node->bounds))
         {
@@ -1689,9 +1648,6 @@ static void mt__ray_bvh(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_Mat
             int index = node->leaf_object_index;
             switch (world->objects_track[index])
             {
-            case MT_OBJECT_TRI:
-                mt__render_handle_tri(ray, (MT_Tri *)world->objects[index], &hit_info, &hit_mat);
-                break;
             case MT_OBJECT_MESH:
                 mt__render_handle_mesh(ray, (MT_Mesh *)world->objects[index], &hit_info, &hit_mat);
                 break;
@@ -1708,12 +1664,12 @@ static void mt__ray_bvh(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_Mat
         }
         else
         {
-            if (node->child_left && stack_ptr < 63)
+            if (node->child_left && stack_ptr < 64)
             {
                 stack[stack_ptr] = node->child_left;
                 stack_ptr++;
             }
-            if (node->child_right && stack_ptr < 63)
+            if (node->child_right && stack_ptr < 64)
             {
                 stack[stack_ptr] = node->child_right;
                 stack_ptr++;
@@ -1735,9 +1691,6 @@ static void mt__ray_brute(MT_World *world, MT_Ray *ray, MT_RayHit *out_hit, MT_M
     {
         switch (world->objects_track[k])
         {
-        case MT_OBJECT_TRI:
-            mt__render_handle_tri(ray, (MT_Tri *)world->objects[k], &closest_hit, &closest_mat);
-            break;
         case MT_OBJECT_MESH:
             mt__render_handle_mesh(ray, (MT_Mesh *)world->objects[k], &closest_hit, &closest_mat);
             break;
@@ -1908,7 +1861,7 @@ static void *mt__worker_thread(void *data)
 MT_Renderer *mt_renderer_create(unsigned int width, unsigned int height, unsigned int thread_count)
 {
     MT_Renderer *renderer = (MT_Renderer *)malloc(sizeof(MT_Renderer));
-    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 1, 0, 1}};
+    *renderer = (MT_Renderer){(MT_RenderSettings){NULL, NULL, width, height, 5, 20, 1, 1, 0}};
 
     renderer->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
     renderer->render_chunks = (MT_RenderChunk **)malloc(sizeof(MT_RenderChunk *) * thread_count);
@@ -1972,16 +1925,6 @@ void mt_renderer_set_bounces(MT_Renderer *renderer, unsigned int bounces)
     renderer->settings.bounces = bounces;
 }
 
-void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable)
-{
-    renderer->settings.b_antialias = b_enable;
-}
-
-void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable)
-{
-    renderer->settings.b_use_bvh = b_enable;
-}
-
 void mt_renderer_enable_progressive(MT_Renderer *renderer, int b_enable)
 {
     renderer->settings.b_progressive = b_enable;
@@ -1991,6 +1934,16 @@ void mt_renderer_enable_progressive(MT_Renderer *renderer, int b_enable)
 void mt_renderer_reset_progressive(MT_Renderer *renderer)
 {
     renderer->thread_station.progressive_index = 1;
+}
+
+void mt_renderer_enable_antialiasing(MT_Renderer *renderer, int b_enable)
+{
+    renderer->settings.b_antialias = b_enable;
+}
+
+void mt_renderer_enable_bvh(MT_Renderer *renderer, int b_enable)
+{
+    renderer->settings.b_use_bvh = b_enable;
 }
 
 void mt_renderer_delete(MT_Renderer *renderer)

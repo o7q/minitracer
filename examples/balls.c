@@ -7,7 +7,7 @@ int main(void)
 {
     int width = 320;
     int height = 180;
-    int render_scale = 5; // scales render width and height
+    int render_scale = 1; // scales render width and height
     int render_width = width * render_scale;
     int render_height = height * render_scale;
     float camera_speed = 0.025f * render_scale; // scale speed with render scale to account for lag
@@ -25,8 +25,9 @@ int main(void)
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 5000);
     mt_renderer_set_bounces(renderer, 8);
-    mt_renderer_enable_progressive(renderer, 1);
     mt_renderer_enable_antialiasing(renderer, 1);
+    mt_renderer_enable_progressive(renderer, 1);
+    mt_renderer_enable_bvh(renderer, 0);
 
     camera->position.x = -1.359;
     camera->position.y = -4.5;
@@ -142,6 +143,13 @@ int main(void)
     mt_renderer_delete(renderer);
     mt_world_delete(world);
     mt_camera_delete(camera);
+    mt_material_delete(mat_diffuse);
+    mt_material_delete(mat_glass);
+    mt_material_delete(mat_glass_blue);
+    mt_material_delete(mat_glass_green);
+    mt_material_delete(mat_glass_red);
+    mt_material_delete(mat_glossy);
+    mt_material_delete(mat_light);
 
     raylib_instance_delete(instance);
 

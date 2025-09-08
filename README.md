@@ -1,19 +1,13 @@
 <div align="center">
     <strong>minitracer</strong>
-    <p>A single-header, multi-threaded software raytracer.</p>
+    <p>a single-header, multi-threaded software raytracer.</p>
 </div>
 
-This is a zero-library raytracer, examples use raylib to display a window.
+This is a ray-tracer I designed and wrote over the course of a few weeks. It's all contained inside of a single C header file. And it requires absolutely no external libraries whatsoever. (example source files use raylib to display a window)
 
-## Features
-- A multi-threaded progressive or still renderer
-- A STL model importer
-- A sky system
-- A BMP exporter
-- Reflective, refractive, and emissive materials
-- Simulated depth of field
+I started this project as a way to learn about the intricacies of ray-tracing and how it's optimized. I am quite pleased with the result and I want to share it with you.
 
-## Screenshots
+---
 
 <table>
     <tr>
@@ -60,14 +54,32 @@ This is a zero-library raytracer, examples use raylib to display a window.
 
 ---
 
-## Usage
+## Features
+- A multi-threaded renderer
+- A STL model importer
+- A sky system
+- A BMP exporter
+- Reflective, refractive, and emissive materials
+- Simulated depth of field
+- BVH optimization
+
+---
+
+## Building
+> Notice: This project uses `pthread.h` for multi-threading, which is not native to non-UNIX systems such as Windows.
+
+To compile on UNIX-based systems, first make sure you have CMake and G++ installed. Then simply use the provided `build.sh` or `run.sh` file. If you'd like: you can specify which example to build inside of the `CMakeLists.txt` file under the `EXAMPLE` variable.
+
+---
+
+## Example Usage
 ```c
-#include "minitracer.h"
+#include "./minitracer.h"
 
 int main(void)
 {
-    int width = 320;
-    int height = 180;
+    int width = 1280;
+    int height = 720;
 
     MT_World *world = mt_world_create(1000);
     MT_Environment *environment = mt_environment_create();
@@ -78,13 +90,14 @@ int main(void)
     camera->position.z = 4;
     camera->position.y = -0.5f;
 
-    MT_Renderer *renderer = mt_renderer_create(width, height, 16);
+    MT_Renderer *renderer = mt_renderer_create(width, height, 4);
     mt_renderer_set_world(renderer, world);
     mt_renderer_set_camera(renderer, camera);
     mt_renderer_set_samples(renderer, 64);
     mt_renderer_set_bounces(renderer, 4);
-    mt_renderer_set_progressive(renderer, 0);
-    mt_renderer_set_antialiasing(renderer, 1);
+    mt_renderer_enable_progressive(renderer, 0); // disable progressive rendering
+    mt_renderer_enable_antialiasing(renderer, 1);
+    mt_renderer_enable_bvh(renderer, 0); // disable bvh optimization, bottlenecks small scenes
 
     MT_Material *mat_diffuse = mt_material_create();
     mat_diffuse->color = (MT_Vec3){1, 0, 0};
@@ -96,16 +109,27 @@ int main(void)
     MT_Mesh *cube = mt_mesh_create_cube((MT_Vec3){0, -0.5f, 0}, (MT_Vec3){0, MT_PI / 4.0f, 0}, (MT_Vec3){1, 1, 1}, mat_diffuse);
     mt_world_add_object(world, cube, MT_OBJECT_MESH);
 
+    mt_world_recalculate_bvh(world);
+
     mt_render(renderer);
 
     MT_Vec3 *pixels = (MT_Vec3 *)malloc(sizeof(MT_Vec3) * width * height);
     mt_renderer_get_pixels(renderer, pixels, 1.0f, 1);
     mt_bmp_write("render.bmp", pixels, width, height);
 
+    mt_renderer_delete(renderer);
+    mt_world_delete(world);
+    mt_camera_delete(camera);
+    mt_material_delete(mat_diffuse);
+    mt_material_delete(mat_glossy);
+    
     return 0;
 }
-
 ```
+
+You must manually free all objects manually using the provided delete functions. World objects that have been added to a world will automatically be freed upon calling `world_delete()`.
+
+---
 
 ## Resources Used
 [**Ray Tracing in One Weekend**](https://raytracing.github.io) \
