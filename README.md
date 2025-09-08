@@ -7,6 +7,8 @@ This is a ray-tracer I designed and wrote over the course of a few weeks. It's a
 
 I started this project as a way to learn about the intricacies of ray-tracing and how it's optimized. I am quite pleased with the result and I want to share it with you.
 
+---
+
 <table>
     <tr>
         <td>
