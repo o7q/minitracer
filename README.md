@@ -3,6 +3,8 @@
     <p>a single-header, multi-threaded software raytracer.</p>
 </div>
 
+---
+
 This is a ray-tracer I designed and wrote over the course of a few weeks. It's all contained inside of a single C header file. And it requires absolutely no external libraries whatsoever. (example source files use raylib to display a window)
 
 I started this project as a way to learn about the intricacies of ray-tracing and how it's optimized. I am quite pleased with the result and I want to share it with you.
